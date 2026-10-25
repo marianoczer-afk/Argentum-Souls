@@ -1,0 +1,13 @@
+{
+  "name": "argentum-souls",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "start": "python3 -m http.server 8000 --bind 127.0.0.1",
+    "test": "node --test tests/*.test.mjs",
+    "test:browser": "node tests/browser.cjs"
+  },
+  "devDependencies": { "playwright": "1.62.1" }
+}

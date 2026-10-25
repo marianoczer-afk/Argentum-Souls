@@ -1,32 +1,56 @@
 # Argentum Souls
 
-Prototipo independiente de entrenamiento y arena inspirado en el ciclo de juego de *Swords and Souls*, con personajes y arte originales.
+Juego web independiente de entrenamiento y arena inspirado en el ciclo de juego de *Swords and Souls*, con dibujo y sonidos propios. Primera entrega: cinco entrenamientos continuos con controles de teclado/mouse/táctiles, combos, experiencia por acierto y progreso guardado al salir.
 
-## Jugar
+## Jugar y desarrollar
 
-El archivo raíz `index.html` contiene todo lo necesario para abrir el laboratorio de entrenamiento, jugar los cinco minijuegos, enfrentar arenas y guardar el progreso local. GitHub Pages debe publicar la rama **main**, carpeta **/ (root)**. La URL prevista es:
+GitHub Pages sirve la rama **main**, carpeta **/ (root)**. El `index.html` raíz carga módulos estáticos desde `src/`, con rutas relativas compatibles con `/Argentum-Souls/`. No necesita backend ni servicios externos.
 
-https://marianoczer-afk.github.io/Argentum-Souls/
+```sh
+npm ci
+npm run build
+npm start
+```
 
-La publicación de Pages requiere activarse en Settings > Pages si todavía no está habilitada.
+Abrir el servidor local en un navegador. La raíz y `/src/` sirven la misma aplicación. Python 3 sirve los archivos; Node.js 20+ se usa para generar el HTML raíz y ejecutar pruebas. No abrir el HTML mediante `file://`: los módulos necesitan HTTP.
+
+Editar en `src/` y ejecutar `npm run build`. El build solo genera el pequeño HTML raíz con las rutas correctas; no duplica JavaScript ni necesita empaquetador. No editar el HTML raíz por separado.
+
+## Entrenamiento
+
+- **Fuerza:** ↑/W alto, ←/A medio, ↓/S bajo; →/D recoge la estrella detrás. Una trayectoria corta varias manzanas próximas. Se pueden encadenar pulsaciones sin recarga.
+- **Defensa:** mover mouse o dedo para orientar el escudo al impacto.
+- **Precisión:** apuntar y hacer clic/toque; acertar al centro da perfecto.
+- **Esquiva:** seguir la dirección indicada ante el ataque del muñeco.
+- **Crítico:** calavera = no pulsar; exclamación = primer toque; rayo en el aire = segundo toque. Espacio, Enter o clic.
+
+No hay final por tiempo. El ritmo aumenta con límites; los errores rompen el combo. Cada acierto da experiencia y los combos la multiplican. La misión de sesión entrega +15 monedas una vez, sin cortar el entrenamiento. Las estaciones suman XP por acierto. «Salir y guardar» conserva lo ganado; también se guarda durante los aciertos. Perder foco o cambiar a arena/tienda pausa el entrenamiento; para volver hay que pulsar «Continuar».
 
 ## Código
 
-- `index.html`: distribución autocontenida que se publica con Pages, derivada de la versión más reciente del laboratorio.
-- `src/index.html`: fuente editable del prototipo HTML (referencia local a `./feel.js`).
-- `src/feel.js`: capa experimental de respuesta visual, mejoras, misiones y arena 3/5.
+- `src/app.js`: composición y bucle de simulación a 120 pasos/s con dibujo por frame.
+- `src/training/model.js`: reglas, proyectiles, combos, señales, recompensas.
+- `src/training/render.js`: sala, personajes, poses, trayectorias y efectos de canvas.
+- `src/training/controller.js`: teclado, puntero, botones y HUD.
+- `src/state.js`: persistencia y exportación de progreso.
+- `src/economy.js`: equipo, estaciones y atributos.
+- `src/arena.js`: arena del prototipo, series de 3/5 y habilidades. Las mejoras completas de combate pertenecen a la próxima entrega.
 
-**Editar en `src/` y luego regenerar el `index.html` raíz** integrando `src/feel.js` en un segundo bloque `<script>`. No editar dos versiones por separado.
+`window.ArgentumSoulsBridge.exportProgress()` devuelve una copia de los datos con esquema `argentum-souls-progress-v1`. Es una interfaz explícita de exportación, no sincronización entre dominios.
 
-## Aislamiento y seguridad
+## Pruebas
 
-Proyecto nuevo, separado de `Idle-Czerniak` (Argentum Idle Estable 35). No enlaza ni altera el guardado v7 del juego original. La clave del laboratorio es `argentum_souls_fiel_v2` en el localStorage de este dominio.
+```sh
+npm test
+npm run test:browser
+```
 
-Esta es la primera versión experimental. Probamos la sintaxis y varias mecánicas con una simulación de DOM, pero **aún falta verificación visual en un navegador real**, referencias del gameplay Flash, ajustes de animación y balance, y agregar creación de personajes con las cinco razas y ocho clases originales de Argentum Idle.
+Las pruebas de navegador usan Playwright y Chromium. En el entorno de nube está instalado `/usr/bin/chromium`; en otra máquina se puede ejecutar `npx playwright install chromium` o indicar `CHROMIUM_PATH`. El test levanta y cierra su propio servidor en el puerto 8765, usa contextos desechables, reloj controlado y teclado/mouse reales. No modifica el guardado del usuario. Las diez minutos por disciplina del test del motor son tiempo simulado, no diez minutos de ejecución real.
 
-## Tareas siguientes
+Las capturas por movimiento y el informe de cada ejecución se guardan en `artifacts/` (ignorado por Git). El test observa la simulación mediante instrumentación exclusiva del navegador de prueba, sin exponer API de depuración en producción ni sustituir los resultados de las acciones.
 
-1. Analizar el video aportado por el usuario del juego Flash, sin copiar recursos gráficos.
-2. Incorporar selección de personaje, clase y raza, preservando IDs y modificadores de Argentum Idle (fuente: `Idle-Czerniak/src/js/core/005-core.js`).
-3. Pulir timing, dash, barrido de manzanas, falso aviso y doble golpe de crítico.
-4. Diseñar progresión de arena y equipamiento por personaje, antes de plantear integración futura con el Idle.
+## Guardado y alcance
+
+Solo se usa `argentum_souls_fiel_v2`, con compatibilidad para niveles, equipo, monedas, victorias y estaciones existentes. No lee ni escribe el guardado v7 de Argentum Idle. No se modificó `Idle-Czerniak`. Personajes con cinco razas/ocho clases, habilidades por clase y desbloqueos de arenas quedan para entregas posteriores.
+
+Ver [análisis de referencia y plan](docs/REFERENCE.md) y [registro de trabajo y validación](docs/WORKLOG.md).
