@@ -1,4 +1,6 @@
 const assert=require('node:assert/strict'),path=require('node:path');
+const {setTimeout:delay}=require('node:timers/promises');
+async function ready(page){for(let i=0;i<150;i++){if(await page.evaluate(()=>!!window.ArgentumSoulsBridge))return;await delay(20);}throw Error('Application did not initialize');}
 module.exports=async(browser,url,check)=>{
  const ctx=await browser.newContext({viewport:{width:1366,height:768},hasTouch:true,isMobile:true});
  await ctx.route('**/training/model.js*',async route=>{const r=await route.fetch();await route.fulfill({response:r,body:await r.text()+'\nconst start=Training.prototype.start;Training.prototype.start=function(...a){const s=start.apply(this,a);window.__training=this;return s;};'});});
@@ -10,7 +12,7 @@ const drawDummy=TrainingRenderer.prototype.dummy;
 TrainingRenderer.prototype.dummy=function(x,y,s,m){const c=this.ctx,translate=c.translate,lineTo=c.lineTo;const calls=[];c.translate=function(...a){calls.push(['translate',...a]);return translate.apply(c,a)};c.lineTo=function(...a){calls.push(['lineTo',...a]);return lineTo.apply(c,a)};try{return drawDummy.call(this,x,y,s,m)}finally{c.translate=translate;c.lineTo=lineTo;if(m)window.__dummyFrame={kind:s.objects[0].kind,calls};}};
 `});});
  await ctx.addInitScript(()=>{window.__tones=[];const C=window.AudioContext;window.AudioContext=class extends C{createOscillator(){const n=super.createOscillator(),set=n.frequency.setValueAtTime.bind(n.frequency);n.frequency.setValueAtTime=(v,t)=>{window.__tones.push(v);return set(v,t)};return n;}};let seed=9871;Math.random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/2**32;};window.__inputs=[];document.addEventListener('pointerdown',e=>window.__inputs.push({type:e.pointerType,x:e.clientX,y:e.clientY}));});
- const p=await ctx.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));const now=new Date('2026-10-25T00:00:00Z');await p.clock.install({time:now});await p.clock.pauseAt(now);await p.goto(url+'/Argentum-Souls/');await p.waitForFunction(()=>!!window.ArgentumSoulsBridge);
+ const p=await ctx.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));const now=new Date('2026-10-25T00:00:00Z');await p.clock.install({time:now});await p.clock.pauseAt(now);await p.goto(url+'/Argentum-Souls/');await ready(p);
  const s=()=>p.evaluate(()=>structuredClone(window.__training.session)),progress=()=>p.evaluate(()=>window.ArgentumSoulsBridge.exportProgress());
  const mode=async m=>p.locator(`[data-mode="${m}"]`).click();
  const point=async(x,y)=>{const b=await p.locator('#cv').boundingBox();return{x:b.x+x*b.width/1200,y:b.y+y*b.height/720};};
@@ -38,7 +40,7 @@ TrainingRenderer.prototype.dummy=function(x,y,s,m){const c=this.ctx,translate=c.
   const earned=await progress();await fixture(()=>{const e=window.__training;e.session.objects=[{id:999,type:'star',x:220,y:445,life:.08,age:0}];});const combo=(await s()).combo;await p.clock.runFor(130);assert.equal((await s()).combo,combo);assert.deepEqual(await progress(),earned);assert.equal((await s()).misses,0);
  });
  await check('A.2 strength: three natural launch paths, real touch cuts and perfect-chain effects respond without waiting for animation completion',async()=>{
-  const toneStart=await p.evaluate(()=>window.__tones.length);await mode('str');await fixture(()=>{window.__training.session.combo=75;window.__training.session.difficulty=Math.min(1,Math.log1p(75/35)/Math.log1p(150/35));});let hits=0;const lanes=new Set();
+  await mode('str');await fixture(()=>{window.__training.session.combo=75;window.__training.session.difficulty=Math.min(1,Math.log1p(75/35)/Math.log1p(150/35));});let hits=0;const lanes=new Set();
   for(let i=0;i<900;i++){
    const state=await s();for(const o of state.objects.filter(o=>o.type==='apple')){
     lanes.add(o.lane);assert.equal(o.startX,1000);assert.equal(o.startY,o.lane===2?500:450);
@@ -46,7 +48,13 @@ TrainingRenderer.prototype.dummy=function(x,y,s,m){const c=this.ctx,translate=c.
    }
    if(hits>=6&&lanes.size===3)break;await p.clock.runFor(10);
   }
-  assert.equal(lanes.size,3);assert.ok((await s()).hits>=3);assert.ok((await s()).perfect>=3);assert.ok((await s()).bestPerfectRun>=3);const tones=await p.evaluate(start=>window.__tones.slice(start),toneStart);assert.ok(tones.filter(v=>v>=1160).length>=3,'native audio must create successive cut tones');
+  assert.equal(lanes.size,3);assert.ok((await s()).hits>=3);assert.ok((await s()).perfect>=1);
+  // Isolate three different lanes so a legitimate same-lane multi-cut (Good) cannot make a perfect-chain test random.
+  await mode('str');await fixture(()=>{const e=window.__training;e.session.spawn=999;e.session.starTimer=999;e.session.laneBag=[2,1,0];e.spawnObject();});
+  await p.clock.runFor(250);await fixture(()=>window.__training.spawnObject());await p.clock.runFor(250);await fixture(()=>window.__training.spawnObject());
+  const toneStart=await p.evaluate(()=>window.__tones.length);
+  for(let i=0;i<500&&(await s()).hits<3;i++){const now=await s();for(const o of now.objects)if(o.type==='apple'&&Math.abs(o.x-350)<18){await tap(...[[330,320],[510,455],[330,620]][o.lane]);await p.clock.runFor(20);}await p.clock.runFor(10);}
+  assert.equal((await s()).hits,3);assert.equal((await s()).perfect,3);assert.equal((await s()).bestPerfectRun,3);const tones=await p.evaluate(start=>window.__tones.slice(start),toneStart);assert.deepEqual(tones,[1160,1320,1480]);
   assert.ok(await p.evaluate(()=>window.__inputs.some(e=>e.type==='touch')));
  });
  await check('A.2 defense: native direct aiming follows circle, actual rounded shield contact blocks and late snap fails',async()=>{
@@ -82,7 +90,7 @@ TrainingRenderer.prototype.dummy=function(x,y,s,m){const c=this.ctx,translate=c.
  await check('A.2 desktop 100%: complete scene, panel and mouse controls fit common resolutions without scroll or distortion',async()=>{
   const desktop=await browser.newContext({hasTouch:false,viewport:{width:1366,height:768}}),dp=await desktop.newPage();
   try{
-   await dp.goto(url+'/Argentum-Souls/');await dp.waitForFunction(()=>!!window.ArgentumSoulsBridge);
+   await dp.goto(url+'/Argentum-Souls/');await ready(dp);
    for(const [width,height] of [[1024,600],[1280,720],[1366,768],[1440,900],[1920,1080]]){
     await dp.setViewportSize({width,height});await dp.locator('[data-mode="str"]').click();await dp.waitForTimeout(60);
     const frame=await dp.locator('#scene').boundingBox(),canvas=await dp.locator('#cv').boundingBox(),panel=await dp.locator('.training-stats').boundingBox();assert.ok(frame.y>=0&&frame.y+frame.height<=height+1,`${width}x${height}: scene fits`);assert.ok(panel.y+panel.height<=height+1);assert.ok(Math.abs(canvas.width/canvas.height-5/3)<.01);assert.equal(await dp.evaluate(()=>document.documentElement.scrollHeight<=innerHeight),true);
