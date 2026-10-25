@@ -5,7 +5,7 @@ const KEY = 'argentum_souls_fiel_v2';
 module.exports = async function regressions(browser, url, check) {
   async function context(init) {
     const ctx = await browser.newContext({ viewport: { width: 900, height: 1000 }, hasTouch: true });
-    await ctx.route('**/training/model.js', async route => {
+    await ctx.route('**/training/model.js*', async route => {
       const r = await route.fetch(); await route.fulfill({ response: r, body: await r.text() + '\nconst start=Training.prototype.start;Training.prototype.start=function(...a){const s=start.apply(this,a);window.__training=this;return s;};' });
     });
     if (init) await ctx.addInitScript(init);

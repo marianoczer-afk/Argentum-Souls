@@ -2,7 +2,7 @@ const assert=require('node:assert/strict');
 const path=require('node:path');
 module.exports=async function deliveryA(browser,url,check){
  const context=await browser.newContext({viewport:{width:1440,height:1000},hasTouch:true});
- await context.route('**/training/model.js',async route=>{const r=await route.fetch();await route.fulfill({response:r,body:await r.text()+'\nconst start=Training.prototype.start;Training.prototype.start=function(...a){const s=start.apply(this,a);window.__training=this;return s;};'});});
+ await context.route('**/training/model.js*',async route=>{const r=await route.fetch();await route.fulfill({response:r,body:await r.text()+'\nconst start=Training.prototype.start;Training.prototype.start=function(...a){const s=start.apply(this,a);window.__training=this;return s;};'});});
  const p=await context.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));
  const time=new Date('2026-10-25T00:00:00Z');await p.clock.install({time});await p.clock.pauseAt(time);await p.goto(url);await p.locator('[data-mode="str"]').waitFor();
  const s=()=>p.evaluate(()=>structuredClone(window.__training.session));

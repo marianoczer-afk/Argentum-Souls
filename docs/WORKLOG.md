@@ -116,3 +116,13 @@ Primera marca de implementación registrada: **05:32:12 del 25 de octubre de 202
 - Se mantuvo el guardado existente sin modificar su estructura y sin cambiar la fórmula provisional de XP en esta etapa. Sigue pendiente estimar 10/25/50/75/100 antes de fijar la curva de B.
 - Artefactos locales: `artifacts/delivery-a-results.json`, `artifacts/browser-results.json`, `artifacts/animation-mutation.json`, capturas y `artifacts/argentum-souls-entrega-a.zip`. El ZIP contiene solo `dist/` listo para servir por HTTP; no incluye credenciales ni guardados.
 - Duración individual de commit, push y creación del PR: **NO MEDIDO**. No se modificó main ni se desplegó Pages en esta sesión.
+
+### Corrección de carga después de Entrega A — 2026-10-25
+
+La captura del usuario muestra HTML de A con estilos/JavaScript anteriores: sonido junto a «Salir», pausa duplicada y canvas sin dibujo. El PR #2 ya estaba fusionado (4007215). La configuración Pages continúa en modo legacy/main; no se cambió ni se desplegó desde esta corrección. No fue posible inspeccionar la URL pública desde este entorno (proxy HTTP 403), por lo que no se afirma haber verificado su caché real.
+
+Se reprodujo en Chromium el arranque roto sirviendo el HTML nuevo con app, controlador y CSS reales de 44fb005. La compilación ahora agrega una identidad de contenido a CSS y al módulo inicial; un import map versiona también todas las dependencias transitivas. Las rutas siguen siendo relativas y funcionan bajo `/Argentum-Souls/`. La entrada de publicación es `index.html` generado; `src/index.html` sigue siendo una entrada de desarrollo sin compilación.
+
+La nueva regresión mantiene disponibles los archivos viejos, recarga con los recursos versionados y exige cinco modos, sonido dentro del diálogo, un único botón pausa, estilos aplicados, canvas dibujado, cero errores y la misma XP/guardado. Se conserva una fixture de los tres archivos anteriores para reproducir el problema sin depender del historial Git en CI. No se alteran los datos guardados ni las mecánicas.
+
+Validación local final: 30 pruebas unitarias, 35 comprobaciones de Chromium y las dos detecciones deliberadas de animación rota aprobadas. Inspección visual de `artifacts/cache-fix-desktop.png` con escena, personaje y cinco modos presentes. La regresión de caché se ejecutó también por separado después de exigir explícitamente la pausa duplicada en el control roto. El test de compilación exige además la versión en el `src` del módulo inicial: un import map por sí solo no versiona esa entrada HTML.
