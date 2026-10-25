@@ -8,10 +8,11 @@ const { performance } = require('node:perf_hooks');
 const { setTimeout: delay } = require('node:timers/promises');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..'), artifacts = path.join(root, 'artifacts');
-const port = 8765, url = `http://127.0.0.1:${port}`;
+let url;
 const results = [];
 const started = performance.now();
 let server, browser, pagesRoot;
+async function ready(page){for(let i=0;i<100;i++){if(await page.evaluate(()=>!!window.ArgentumSoulsBridge))return;await delay(20);}throw Error('Application did not initialize');}
 async function inspect(page) { return page.evaluate(() => structuredClone(window.__training.session)); }
 async function until(page, condition, max = 120, step = 50) {
   for (let i = 0; i < max; i++) { const s = await inspect(page); if (condition(s)) return s; await page.clock.runFor(step); }
@@ -19,8 +20,8 @@ async function until(page, condition, max = 120, step = 50) {
 }
 async function canvasPoint(page, x, y, click = true) {
   const b = await page.locator('#cv').boundingBox();
-  if (click) await page.mouse.click(b.x + x * b.width / 900, b.y + y * b.height / 506);
-  else await page.mouse.move(b.x + x * b.width / 900, b.y + y * b.height / 506);
+  if (click) await page.mouse.click(b.x + x * b.width / 1200, b.y + y * b.height / 720);
+  else await page.mouse.move(b.x + x * b.width / 1200, b.y + y * b.height / 720);
 }
 async function capture(page, name) { return page.locator('#cv').screenshot({ path: path.join(artifacts, `${name}.png`) }); }
 async function check(name, fn) {
@@ -32,14 +33,14 @@ async function check(name, fn) {
   pagesRoot = await mkdtemp(path.join(tmpdir(), 'argentum-pages-'));
   for (const file of ['src', 'index.html']) await symlink(path.join(root, file), path.join(pagesRoot, file));
   await symlink(root, path.join(pagesRoot, 'Argentum-Souls'), 'dir');
-  server = spawn('python3', ['-m', 'http.server', String(port), '--bind', '127.0.0.1', '--directory', pagesRoot], { stdio: 'ignore' });
-  let available = false;
-  for (let i = 0; i < 60; i++) {
-    if (server.exitCode !== null) throw new Error(`Test HTTP server exited: ${server.exitCode}`);
-    try { const r = await fetch(url); if (r.ok) { available = true; break; } } catch {}
-    await delay(50);
-  }
-  assert.ok(available, 'test server ready');
+  url = await new Promise((resolve,reject)=>{
+    server=spawn('python3',['-u','-m','http.server','0','--bind','127.0.0.1','--directory',pagesRoot],{stdio:['ignore','pipe','pipe']});
+    let output='',error='';const timer=setTimeout(()=>reject(Error('Test server startup timed out')),10000);
+    server.stderr.on('data',chunk=>{error+=chunk;});
+    server.stdout.on('data',chunk=>{output+=chunk;const match=output.match(/port (\d+)/);if(match){clearTimeout(timer);resolve(`http://127.0.0.1:${match[1]}`);}});
+    server.once('error',e=>{clearTimeout(timer);reject(e);});
+    server.once('exit',code=>{if(!output.match(/port (\d+)/)){clearTimeout(timer);reject(Error(`Test server exited ${code}: ${error}`));}});
+  });
   const executable = process.env.CHROMIUM_PATH || (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined);
   browser = await chromium.launch({ executablePath: executable, headless: true, args: ['--no-sandbox'] });
   for (const entry of ['/', '/src/']) {
@@ -67,15 +68,15 @@ TrainingRenderer.prototype.hero = function(x,y,...args) {
     await page.addInitScript(() => { let seed = 42; Math.random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }; });
     const time = new Date('2026-10-25T00:00:00Z');
     await page.clock.install({ time }); await page.clock.pauseAt(time);
-    assert.equal((await page.goto(url + entry)).status(), 200);
+    assert.equal((await page.goto(url + entry)).status(), 200);await ready(page);
     const prefix = entry === '/' ? 'root' : 'source';
     await check(`${prefix}: keyboard sword hit changes pose and rendered frame`, async () => {
-      await page.locator('#start').click();
+      await page.locator('.mode.active').click();
       const s = await until(page, s => s.objects.some(o => o.type === 'apple'));
       const apple = s.objects.find(o => o.type === 'apple');
       await page.clock.runFor(Math.ceil((apple.x - 350) / -apple.vx * 1000));
       const before = await capture(page, `${prefix}-strength-before`);
-      await page.keyboard.press(['ArrowUp', 'ArrowLeft', 'ArrowDown'][apple.lane]);
+      await page.keyboard.press(['ArrowUp', 'ArrowRight', 'ArrowDown'][apple.lane]);
       assert.ok((await inspect(page)).hits >= 1);
       await page.clock.runFor(90);
       const after = await capture(page, `${prefix}-strength-swing`);
@@ -95,7 +96,7 @@ TrainingRenderer.prototype.hero = function(x,y,...args) {
     await check(`${prefix}: continuous past 30 seconds; pause, manual exit and reload preserve XP`, async () => {
       await page.clock.runFor(35000);
       const s = await inspect(page); assert.ok(s.time > 35); assert.equal(s.running, true);
-      assert.equal(await page.locator('#start').isDisabled(), true);
+      assert.equal(await page.locator('#pause').isDisabled(), false);
       await page.locator('#pause').click(); const t = (await inspect(page)).time;
       await page.clock.runFor(3000); assert.equal((await inspect(page)).time, t);
       await page.locator('#pause').click(); await page.clock.runFor(100); assert.ok((await inspect(page)).time > t);
@@ -103,20 +104,20 @@ TrainingRenderer.prototype.hero = function(x,y,...args) {
       assert.ok(progress.xp.str > 0 || progress.stats.str > 0);
       await page.locator('#stop').click();
       assert.match(await page.locator('#overlay').innerText(), /Sesión guardada/);
-      await page.reload();
+      await page.reload(); await ready(page);
       assert.deepEqual(await page.evaluate(() => window.ArgentumSoulsBridge.exportProgress()), progress);
     });
     await check(`${prefix}: mouse shield blocks incoming projectile at impact`, async () => {
-      await page.locator('[data-mode="def"]').click(); await page.locator('#start').click();
+      await page.locator('[data-mode="def"]').click(); await page.locator('.mode.active').click();
       const s = await until(page, s => s.objects.length > 0), o = s.objects[0];
-      const distance = Math.hypot(o.x - 450, o.y - 270), speed = Math.hypot(o.vx, o.vy);
-      await canvasPoint(page, 450 + (o.x - 450) / distance * 140, 270 + (o.y - 270) / distance * 140, false);
+      const distance = Math.hypot(o.x - 600, o.y - 390), speed = Math.hypot(o.vx, o.vy);
+      await canvasPoint(page, 600 + (o.x - 600) / distance * 140, 390 + (o.y - 390) / distance * 140, false);
       await page.clock.runFor(Math.ceil((distance - 83) / speed * 1000));
       assert.ok((await inspect(page)).hits >= 1);
       await capture(page, `${prefix}-defense-block`); await page.locator('#stop').click();
     });
     await check(`${prefix}: real mouse shot hits target center and displays arrow`, async () => {
-      await page.locator('[data-mode="acc"]').click(); await page.locator('#start').click();
+      await page.locator('[data-mode="acc"]').click(); await page.locator('.mode.active').click();
       const s = await until(page, s => s.objects.length > 0), target = s.objects[0];
       await canvasPoint(page, target.x, target.y);
       assert.equal((await inspect(page)).perfect, 1);
@@ -125,15 +126,15 @@ TrainingRenderer.prototype.hero = function(x,y,...args) {
       await page.locator('#stop').click();
     });
     await check(`${prefix}: keyboard dodge responds to telegraphed direction and animates`, async () => {
-      await page.locator('[data-mode="dodge"]').click(); await page.locator('#start').click();
-      const s = await until(page, s => s.objects[0]?.age > .2), cue = s.objects[0];
+      await page.locator('[data-mode="dodge"]').click(); await page.locator('.mode.active').click();
+      const s = await until(page, s => s.objects[0]?.age > s.objects[0]?.windup * .65), cue = s.objects[0];
       await page.keyboard.press({ low: 'ArrowUp', high: 'ArrowDown', left: 'ArrowRight', right: 'ArrowLeft' }[cue.kind]);
       assert.equal((await inspect(page)).hits, 1);
       await page.clock.runFor(100); assert.ok((await inspect(page)).pose);
       await capture(page, `${prefix}-dodge`); await page.locator('#stop').click();
     });
     await check(`${prefix}: skull punishes input; critical requires keyboard jump and mouse strike`, async () => {
-      await page.locator('[data-mode="crit"]').click(); await page.locator('#start').click();
+      await page.locator('[data-mode="crit"]').click(); await page.locator('.mode.active').click();
       await until(page, s => s.critical.stage === 'fake', 400);
       const misses = (await inspect(page)).misses;
       await page.keyboard.press('Space'); assert.equal((await inspect(page)).misses, misses + 1);
@@ -146,7 +147,7 @@ TrainingRenderer.prototype.hero = function(x,y,...args) {
       await page.locator('#stop').click();
     });
     await check(`${prefix}: view switch pauses training; arena abilities and 3/5 selection remain playable`, async () => {
-      await page.locator('#start').click(); await page.clock.runFor(500);
+      await page.locator('.mode.active').click(); await page.clock.runFor(500);
       await page.locator('[data-view="arena"]').click(); assert.equal((await inspect(page)).paused, true);
       await page.locator('[data-waves="5"]').click(); await page.locator('#fightStart').click();
       await page.locator('#skillSlash').click(); assert.equal(await page.locator('#skillSlash').isDisabled(), true);
@@ -158,17 +159,17 @@ TrainingRenderer.prototype.hero = function(x,y,...args) {
       await page.locator('[data-view="shop"]').click();
       assert.equal(await page.locator('[data-buy]').count(), 4); assert.equal(await page.locator('[data-station]').count(), 5);
       await page.locator('[data-view="train"]').click();
-      assert.equal((await inspect(page)).paused, true);
+      assert.equal((await inspect(page)).paused, false);
       await page.locator('#stop').click();
     });
     await page.screenshot({ path: path.join(artifacts, `${prefix}-desktop.png`), fullPage: true });
     await check(`${prefix}: mobile layout and real touch controls`, async () => {
       await page.setViewportSize({ width: 390, height: 844 });
-      await page.locator('[data-mode="str"]').click(); await page.locator('#start').click();
+      await page.locator('[data-mode="str"]').click(); await page.locator('.mode.active').click();
       const s = await until(page, s => s.objects.some(o => o.type === 'apple'));
       const apple = s.objects.find(o => o.type === 'apple');
       await page.clock.runFor(Math.ceil((apple.x - 350) / -apple.vx * 1000));
-      await page.locator(`.souls-touch [data-key="${['ArrowUp','ArrowLeft','ArrowDown'][apple.lane]}"]`).tap();
+      await page.locator(`.souls-touch [data-key="${['ArrowUp','ArrowRight','ArrowDown'][apple.lane]}"]`).tap();
       assert.equal((await inspect(page)).hits, 1);
       await page.clock.runFor(90);
       await page.screenshot({ path: path.join(artifacts, `${prefix}-mobile.png`), fullPage: true });
@@ -179,13 +180,14 @@ TrainingRenderer.prototype.hero = function(x,y,...args) {
     await context.close();
   }
   await require('./browser-regressions.cjs')(browser, url, check);
+  await require('./browser-delivery-a.cjs')(browser, url, check);
   await check('GitHub Pages: application and modules load under /Argentum-Souls/', async () => {
     const page = await browser.newPage(), errors = [], failed = [];
     page.on('pageerror', e => errors.push(e.message));
     page.on('response', r => { if (!r.ok() && !r.url().endsWith('favicon.ico')) failed.push(r.url()); });
     assert.equal((await page.goto(url + '/Argentum-Souls/')).status(), 200);
     assert.equal(await page.locator('[data-mode]').count(), 5);
-    await page.locator('#start').click(); await page.waitForTimeout(700);
+    await page.locator('.mode.active').click(); await page.waitForTimeout(700);
     assert.equal(await page.locator('#stop').isEnabled(), true);
     await page.locator('#stop').click();
     assert.match(await page.locator('#overlay').innerText(), /Sesión guardada/);

@@ -82,3 +82,37 @@ Informes de esta ejecución: `artifacts/correction-results.json`, `artifacts/bro
 - `gh pr edit` falló por la consulta obsoleta de Projects (classic) de esa versión del CLI. Se usó el endpoint REST `PATCH /repos/marianoczer-afk/Argentum-Souls/pulls/1`, que confirmó la actualización del mismo PR; no fue necesario crear otro ni pedir credenciales.
 - Main remoto se comprobó en `438977b5bd12f3876c9e4ca4fecb3449a02b42ab`, sin cambios. No se fusionó el PR ni se publicó una versión de Pages.
 - Duración individual de commit, push y edición del PR: **NO MEDIDO**.
+
+
+## Entrega A — HUD y entrenamiento
+
+Se inicia una entrega nueva después de confirmar que PR #1 está fusionado. Rama `dev/delivery-a-training-hud`, base main `44fb0050a0d1c5c30aa60b253abbe1f2739e0116`. Alcance completo y pendientes B/C en [DELIVERY_A.md](DELIVERY_A.md).
+
+Primera marca de implementación registrada: **05:32:12 del 25 de octubre de 2026, Buenos Aires (UTC−3)**. El análisis inicial del pedido y consultas previas a esa marca: **NO MEDIDO**. Se mantiene tiempo de reloj por etapas; no se presenta como tiempo de CPU ni facturación.
+
+- Se consultó Idle-Czerniak en modo lectura (`59977270a68c3a05f84eb760117b1a990d969c89`), identidad/HUD y datos originales; no se modificó ese repositorio.
+- Las primeras pruebas fallaron por expectativas que el pedido cambia: dificultad por tiempo, corte medio con izquierda y castigo por golpes al aire. Se reemplazaron por verificaciones de los contratos nuevos y se conservaron continuidad, premios, combos, persistencia y regresiones de auditoría. Se corrigió además una comparación exacta de punto flotante extendiendo la simulación hasta alcanzar efectivamente el tope.
+- Un caso de Configuración suponía que el diálogo seguiría abierto tras pulsar Espacio con el botón Cerrar enfocado. La activación nativa de ese botón lo cerraba correctamente; se corrigió el test y se mantuvo la exigencia de que no activara Crítico.
+- Se detectó una carrera de inicialización al recargar: el test leía el bridge antes de que terminara la toma asíncrona del bloqueo. Ahora espera explícitamente la aplicación lista mediante sondeo fuera del reloj simulado. Los servidores de test usan un puerto libre asignado por el sistema y esperan su arranque, para no interferir con otras ejecuciones.
+- Duración individual de esos intentos iniciales y diagnósticos: **NO MEDIDO**. Las ejecuciones finales se registran a continuación.
+- Se revisaron capturas de escritorio, configuración, parejas de precisión, estrella, móvil vertical/horizontal y cuatro fases de esquiva. La resolución lógica es 1200×720, sin deformación. Capturas en `artifacts/delivery-a-*.png`.
+- El build de publicación se probó con dos números de CI y SHA distintos en copias temporales. La configuración actual de Pages sigue en modo branch/main; el PR prepara Actions y documenta la selección de ese origen antes de publicar con numeración automática. No se cambia Pages ni se publica main desde esta sesión.
+- La fórmula de XP anterior queda provisional en A. No se fija una curva de seis meses/260 horas sin la simulación y estimaciones que se presentarán en B.
+
+### Validación final de A
+
+Última marca de revisión y empaquetado: **06:01:43 Buenos Aires**. El intervalo desde 05:32:12 incluye implementación, diagnósticos, esperas, tests y documentación.
+
+| Comando | Inicio Buenos Aires | Duración del proceso | Resultado |
+| --- | --- | --- | --- |
+| `npm run build` | 05:57:56 | 261 ms | salida 0 |
+| `npm test` | 05:57:56 | 482 ms | salida 0 |
+| `npm run test:browser` | 05:57:56 | 69443 ms | salida 0 |
+| `npm run test:mutation` | 05:59:06 | 2430 ms | salida 0 |
+
+- **30 pruebas unitarias y 34 comprobaciones Chromium aprobadas**, sin fallidas ni omitidas. Las 34 incluyen las regresiones de guardado y las siete comprobaciones específicas de A. Se preservó la sensibilidad de las pruebas a cuerpos sin animación: los dos fallos internos de la mutación son esperados y específicos.
+- Commit fuente: `f938a09a0ae445bdcaa544e9ddbe52c7d7366258`. Build comprobado: `0.3.0-dev.e4924e8`, digest `e4924e82b390`, sin marca de cambios locales. El commit posterior solo registra HTML generado, documentación y capturas de revisión; no cambia las fuentes del juego.
+- Se comprobaron escritorio 1440×1000, móvil 390×844 y horizontal 844×390, proporción 5:3, indicadores dentro de la escena e inicio automático. Se revisaron las cuatro fases de Esquiva en capturas; una respuesta perfecta permanece válida al ejecutarse el golpe.
+- Se mantuvo el guardado existente sin modificar su estructura y sin cambiar la fórmula provisional de XP en esta etapa. Sigue pendiente estimar 10/25/50/75/100 antes de fijar la curva de B.
+- Artefactos locales: `artifacts/delivery-a-results.json`, `artifacts/browser-results.json`, `artifacts/animation-mutation.json`, capturas y `artifacts/argentum-souls-entrega-a.zip`. El ZIP contiene solo `dist/` listo para servir por HTTP; no incluye credenciales ni guardados.
+- Duración individual de commit, push y creación del PR: **NO MEDIDO**. No se modificó main ni se desplegó Pages en esta sesión.

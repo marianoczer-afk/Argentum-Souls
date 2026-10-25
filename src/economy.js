@@ -6,8 +6,8 @@ const GEAR = {
   shield: { name: 'Escudo resistente', desc: '+3 defensa por nivel', base: 35 },
   bow: { name: 'Arco de precisión', desc: '+4 daño especial por nivel', base: 40 },
 };
-export function mountEconomy(state, save, canMutate = () => true) {
-  const $ = id => document.getElementById(id);
+export function mountEconomy(state, save, canMutate = () => true, root = document) {
+  const $ = id => root.querySelector(`#${id}`);
   const station = document.createElement('div'); station.id = 'soulsStations'; $('shopList').insertAdjacentElement('afterend', station);
   function renderProgress() {
     $('coins').textContent = state.coins.toLocaleString('es-AR');
