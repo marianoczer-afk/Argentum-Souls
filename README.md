@@ -72,3 +72,9 @@ Ver [análisis de referencia y plan](docs/REFERENCE.md) y [registro de trabajo y
 Ver también [correcciones de la primera auditoría](docs/CORRECTIONS.md).
 
 La versión/publicación automática y la configuración de Pages necesaria se detallan en [Entrega A](docs/DELIVERY_A.md). Personajes, curva definitiva de XP y arenas nuevas quedan para B/C.
+
+## Entrega A.1
+
+Pulido de los cinco entrenamientos: ráfagas y dificultad por combo, premios persistentes de hitos, misión con XP, anticipación de Esquiva, lectura de amagues de Crítico y panel compacto de atributos. [Cambios y validación](docs/DELIVERY_A1.md) · [Parámetros y simulaciones](docs/BALANCE_A1.md).
+
+`npm run test:balance` reproduce los 35 escenarios de balance. El build de publicación está en `dist/`; abrir mediante HTTP, no `file://`. Las arenas y los personajes siguen pendientes para B/C.

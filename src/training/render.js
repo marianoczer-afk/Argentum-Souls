@@ -1,4 +1,5 @@
-import { LANES, WORLD, dodgePhase, clamp } from './model.js';
+import {tuning} from './balance.js';
+import { LANES, dodgePhase, dodgeTrajectory, clamp } from './model.js';
 const TAU = Math.PI * 2;
 export function heroTransform(pose) {
   if (!pose) return { x: 0, y: 0, scaleY: 1, sword: -.5 };
@@ -59,20 +60,25 @@ export class TrainingRenderer {
     const c = this.ctx;
     c.save(); c.translate(x, y);
     const cue = s?.objects.find(o => o.type === 'cue');
-    const anticipation = cue ? clamp(cue.age / cue.windup, 0, 1) : 0;
-    c.rotate(s?.dummy > 0 ? -.12 * Math.sin(s.dummy * 20) : cue ? Math.sin(anticipation * Math.PI) * .18 : 0);
+    c.rotate(!cue&&s?.dummy>0?-.12*Math.sin(s.dummy*20):0);
     c.strokeStyle = '#664939'; c.lineWidth = 13; c.lineCap = 'round'; c.beginPath(); c.moveTo(0, -85); c.lineTo(0, 90); c.moveTo(-48, -12); c.lineTo(48, -12); c.stroke();
     this.round(-27, -44, 54, 78, 13, '#d2c4a1'); this.circle(0, -78, 34, '#d2c4a1', '#66543e');
     this.circle(-12, -79, 4, '#526b67'); this.circle(12, -79, 4, '#526b67');
     c.strokeStyle = '#8e614c'; c.lineWidth = 3; c.beginPath(); c.moveTo(-12, -63); c.lineTo(13, -59); c.stroke();
     this.round(-38, -117, 76, 15, 3, '#37333c'); this.round(-25, -151, 50, 39, 4, '#44404b');
     this.round(-25, -122, 50, 6, 2, '#a98354');
-    if (cue) {
-      const phase=dodgePhase(cue), striking=phase==='strike', perfect=phase==='perfect';
-      c.strokeStyle=perfect?'#fff2a5':'#d5bc88';c.lineWidth=9;
-      c.beginPath();c.moveTo(-35,-20);c.lineTo(striking?-660:-100-anticipation*70,cue.kind==='low'?55:cue.kind==='high'?-80:cue.resolved&&cue.outcome!=='miss'?95:-20);c.stroke();
-      if(perfect){this.circle(0,-85,48,null,'#fff0a4');this.label('✦',-70,-125,40,'#fff2a0');}
-    }
+    c.restore();
+  }
+  dodgeAttack(cue){
+    const c=this.ctx,phase=dodgePhase(cue);
+    const path=dodgeTrajectory(cue.kind);
+    const {x1,y1,x2,y2}=path;
+    c.save();c.setLineDash([12,9]);c.strokeStyle=phase==='perfect'?'#fff2a5':'#ffe2ae99';c.lineWidth=3;c.beginPath();c.moveTo(x1,y1);c.lineTo(x2,y2);c.stroke();c.setLineDash([]);
+    const progress=clamp((cue.age-cue.windup+.04)/.14,0,1),tip=x1+(x2-x1)*(.12+.88*progress);
+    c.strokeStyle='#49352b';c.lineWidth=13;c.beginPath();c.moveTo(x1,y1);c.lineTo(tip,y1);c.stroke();
+    c.strokeStyle='#f0dbab';c.lineWidth=7;c.stroke();
+    this.label(x2>x1?'→':'←',(x1+x2)/2,y1-16,28,phase==='perfect'?'#fff7bd':'#fff0d4');
+    if(phase==='perfect'){this.circle(x1,y1,30,null,'#fff8ba');this.label('✦',x1,y1-45,36,'#fff3a2');}
     c.restore();
   }
   apple(o) {
@@ -87,7 +93,7 @@ export class TrainingRenderer {
     c.beginPath();
     for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 10 : 23; c.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
     c.closePath(); c.fillStyle = '#ffe58a'; c.fill(); c.strokeStyle = '#8c693c'; c.lineWidth = 2; c.stroke(); c.restore();
-    this.label('★ ATRÁS · ←', o.x, o.y - 40, 22, '#fff2b8');
+    this.round(o.x-68,o.y-62,136,30,7,'#253440ee');this.label('← ATRÁS',o.x,o.y-40,20,'#fff2b8');
     this.circle(o.x-25,o.y+8,3,'#ffe58a90');this.circle(o.x-45,o.y+14,2,'#ffe58a60');
   }
   target(o) {
@@ -134,23 +140,20 @@ export class TrainingRenderer {
       for (const y of LANES) { c.beginPath(); c.moveTo(260, y); c.lineTo(1080, y); c.stroke(); }
       c.restore(); this.hero(330, 490, s?.pose); this.dummy(1050, 480, s);
       for (const o of objects) o.type === 'star' ? this.star(o) : this.apple(o);
-      this.label('← ESTRELLA     ↑ ALTO     → CORTE MEDIO     ↓ BAJO',600,700,18);
+
     } else if (mode === 'def') {
       this.hero(600, 420, s?.pose, false);
       const a = Math.atan2(engine.pointer.y - 390, engine.pointer.x - 600);
       this.circle(600, 390, 88, null, '#e1c68b75');
       c.save(); c.translate(600, 390); c.rotate(a); this.round(64, -31, 20, 62, 7, '#b9c1b9'); this.round(69, -23, 9, 46, 4, '#386277'); c.restore();
-      objects.forEach(o => this.apple(o)); this.label('SEGUÍ EL PROYECTIL · EL DESTELLO MARCA EL BLOQUEO PERFECTO',600,700,18);
-    } else if (mode === 'acc') { objects.forEach(o => this.target(o)); this.bow(engine.pointer, s?.pose); this.label('CENTRO PEQUEÑO = PERFECTO · DOBLE OBJETIVO: DOS TOQUES',600,700,18); }
+      objects.forEach(o=>{const angle=Math.atan2(o.vy,o.vx),c=this.ctx;c.save();c.strokeStyle='#ffe3aa80';c.lineWidth=3;c.beginPath();c.moveTo(o.x-Math.cos(angle)*65,o.y-Math.sin(angle)*65);c.lineTo(o.x,o.y);c.stroke();c.restore();this.apple(o);});
+    } else if (mode === 'acc') { objects.forEach(o => this.target(o)); this.bow(engine.pointer, s?.pose); }
     else if (mode === 'dodge') {
-      this.hero(330, 490, s?.pose); this.dummy(1000, 480, s);
-      const cue = objects[0];
+      const cue=objects[0];
+      this.hero(330,490,s?.pose);this.dummy(cue?.kind==='left'?100:1000,480,s);if(cue)this.dodgeAttack(cue);
       if(cue){
-        const phase=dodgePhase(cue), labels={low:'BARRIDO BAJO · SALTÁ ↑',high:'GOLPE ALTO · AGACHATE ↓',left:'ESTOCADA IZQUIERDA · DERECHA →',right:'ESTOCADA DERECHA · IZQUIERDA ←'};
-        const label=cue.resolved?(cue.outcome==='miss'?'GOLPE · REVISÁ LA SEÑAL':'¡ESQUIVA LOGRADA!'):phase==='prepare'?'EL MUÑECO SE PREPARA…':phase==='perfect'?'✦ VENTANA PERFECTA · '+labels[cue.kind]:labels[cue.kind];
-        this.round(210,95,780,56,12,phase==='perfect'?'#655632ee':'#3e332cdd');this.label(label,600,131,24);
         this.round(330,165,540,9,4,'#76513d');this.round(330,165,540*(1-clamp(cue.age/cue.windup,0,1)),9,4,'#f8dc9f');
-      }else this.label('OBSERVÁ LA PREPARACIÓN DEL MUÑECO',600,125,24,'#493b2b');
+      }
     } else {
       const stage = s?.critical.stage ?? 'wait', clock = s?.critical.clock ?? 0;
       let x = 330, y = 490, pose = s?.pose;
@@ -163,10 +166,15 @@ export class TrainingRenderer {
         pose = s.pose ? { ...s.pose, kind: 'slash' } : null;
       }
       this.hero(x, y, pose); this.dummy(900, 480, s);
-      const labels = { wait: 'OBSERVÁ AL MUÑECO', fake: '☠ AMAGUE · NO PULSES', ready: '❗ AHORA · SALTÁ', jump: 'PREPARÁ EL SEGUNDO TOQUE', air: '⚡ AHORA · GOLPEÁ', impact: '¡CRÍTICO CONECTADO!' };
-      this.round(250, 90, 700, 56, 10, '#44332be0'); this.label(labels[stage], 600, 127, 24, stage === 'fake' ? '#ffb3a3' : '#fff0ba');
       if (['fake', 'ready', 'air'].includes(stage)) this.label({ fake: '☠', ready: '❗', air: '⚡' }[stage], stage === 'air' ? 760 : 990, 295, 45, stage === 'fake' ? '#ffa29b' : '#fff1a1');
-      this.label('CALAVERA: ESPERÁ · EXCLAMACIÓN: SALTÁ · RAYO: GOLPEÁ', 600, 700, 19);
+      if(['ready','air'].includes(stage)){
+        const p=tuning('crit',engine.difficulty),perfect=stage==='air'&&clock>=p.perfectStart&&clock<=p.perfectEnd;
+        const rx=stage==='air'?760:990,ry=270;
+        this.circle(rx,ry,52,'#29303be8',perfect?'#fff5a0':'#b89e6e');
+        c.save();c.lineWidth=perfect?9:4;c.strokeStyle=perfect?'#fff5a0':'#f1bf70';c.beginPath();c.arc(rx,ry,47,-Math.PI/2,-Math.PI/2+TAU*clamp(clock/(s.critical.limit??(stage==='air'?p.air:p.ready)),0,1));c.stroke();c.restore();
+        this.label(perfect?'★':'✦',rx,ry+17,perfect?52:40,perfect?'#fff9bc':'#d8c59b');
+        if(perfect)this.label('PERFECTO',rx,ry-65,20,'#fff1a1');
+      }
     }
     if (s) this.effects(s.effects);
     if (s?.paused) { c.fillStyle = '#17232cbf'; c.fillRect(0, 0, 1200, 720); this.label('EN PAUSA · TU PROGRESO ESTÁ CONSERVADO', 600, 350, 24); }

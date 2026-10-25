@@ -26,9 +26,9 @@ function feedback(kind) {
   } catch { /* Sound is optional; training remains playable. */ }
 }
 const training = mountTraining({
-  root, getProgress: mode=>({level:state.stats[mode],xp:state.xp[mode],required:xpRequired(state.stats[mode])}),
+  root, getRecord:mode=>state.comboRecords[mode], getProgress: mode=>({level:state.stats[mode],xp:state.xp[mode],required:xpRequired(state.stats[mode])}),
   reward(mode, earned) {
-    const xp = earned.xp > 0 ? earned.xp + state.stations[mode] : 0;
+    const xp = earned.xp > 0 ? earned.xp + (earned.kind==='hit'?state.stations[mode]:0) : 0;
     if (!canMutate()) return { xp: 0 };
     awardTraining(state, mode, { ...earned, xp }); save(); progressDirty = true; return { xp };
   }, onSave: save, feedback, canMutate,

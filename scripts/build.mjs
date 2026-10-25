@@ -5,6 +5,7 @@ const root=new URL('../',import.meta.url);
 const source=await readFile(new URL('src/index.html',root),'utf8');
 const pkg=JSON.parse(await readFile(new URL('package.json',root),'utf8'));
 const hash=createHash('sha256'), modules=[];
+hash.update(await readFile(new URL('scripts/build.mjs',root))); // Asset addressing is part of the release identity.
 async function digest(dir){for(const item of (await readdir(dir,{withFileTypes:true})).sort((a,b)=>a.name.localeCompare(b.name))){const file=new URL(item.name+(item.isDirectory()?'/':''),dir);hash.update(item.name);if(item.isDirectory())await digest(file);else {hash.update(await readFile(file));if(item.name.endsWith('.js'))modules.push('./'+file.pathname.slice(new URL('src/',root).pathname.length));}}}
 await digest(new URL('src/',root));const build=hash.digest('hex').slice(0,12);
 let commit='sin-git',dirty=true;
@@ -21,4 +22,4 @@ const output=source.replace('name="souls-build" content=""','name="souls-build" 
 await writeFile(new URL('index.html',root),output);
 await mkdir(new URL('dist/',root),{recursive:true});await cp(new URL('src/',root),new URL('dist/src/',root),{recursive:true});await writeFile(new URL('dist/index.html',root),output);
 await writeFile(new URL('dist/.nojekyll',root),'');
-console.log(`Built Entrega A ${version} · commit ${commit.slice(0,7)}${dirty?'+local':''} · ${build}`);
+console.log(`Built Entrega A.1 ${version} · commit ${commit.slice(0,7)}${dirty?'+local':''} · ${build}`);
