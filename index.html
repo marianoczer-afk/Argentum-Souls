@@ -1,0 +1,313 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Argentum · Souls Training Lab</title><style>
+:root{--bg:#171a25;--panel:#242c3a;--line:#68523b;--gold:#f4cb79;--ink:#f9edd8;--muted:#c4b59d}*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#33334a,#121520 75%);color:var(--ink);font:15px system-ui,Segoe UI,sans-serif}header{padding:14px max(16px,calc((100vw - 1190px)/2));background:#171b27;border-bottom:2px solid #7b5833;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}h1{font:700 25px Georgia;color:var(--gold);margin:0}button{cursor:pointer;font:inherit}nav{display:flex;gap:7px;flex-wrap:wrap}.tab,.btn{border:1px solid #957149;background:linear-gradient(#53422e,#362b24);color:#fff2d8;padding:10px 15px;border-radius:8px}.tab.active,.btn.primary{background:linear-gradient(#c28a42,#815424);color:#211608;font-weight:700}.btn:disabled{opacity:.45;cursor:not-allowed}main{max-width:1190px;margin:22px auto;padding:0 16px}.view{display:none}.view.active{display:block}.layout{display:grid;grid-template-columns:minmax(0,1.9fr) minmax(275px,1fr);gap:15px}.panel{background:#222b38;border:1px solid #5a4b3e;border-radius:13px;padding:16px;box-shadow:0 12px 24px #0003;margin-bottom:14px}.panel h2{font:700 22px Georgia;color:var(--gold);margin:0 0 10px}.muted{color:var(--muted);font-size:13px;line-height:1.5}.modes{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px;margin-bottom:13px}.mode{border:1px solid #67553d;border-radius:10px;padding:12px 5px;background:#322c2a;color:#e8d5b5;font-weight:700}.mode.active{background:#8e6034;color:white;border-color:#f4cd80}.mode .emoji{display:block;font-size:24px;margin-bottom:4px}.scene{position:relative;border:5px solid #4e3428;border-radius:14px;overflow:hidden;background:#b97c54;aspect-ratio: 16/9;touch-action:none;user-select:none}.scene canvas{width:100%;height:100%;display:block;touch-action:none}.scene-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}.scene-overlay>div{background:#201d1ed9;border:2px solid #d6a461;border-radius:14px;text-align:center;padding:17px 24px;max-width:85%}.scene-overlay h3{color:#ffd78c;font:700 26px Georgia;margin:0 0 6px}.scene-overlay p{margin:0;font-size:13px}.scene-overlay.hidden{display:none}.hud{display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;margin-top:12px}.stat{border:1px solid #5c5041;background:#171e28;border-radius:8px;padding:9px 12px;min-width:105px}.stat strong{display:block;color:#f6d390;font-size:21px}.stat span{color:#bcb6ad;font-size:12px}.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:13px}.meter{height:12px;border-radius:12px;overflow:hidden;background:#111822;border:1px solid #564c3d}.meter>div{height:100%;background:linear-gradient(90deg,#d37a42,#f5d985);transition:width .2s}.skillrow{margin:12px 0}.skillrow>div:first-child{display:flex;justify-content:space-between;margin-bottom:5px}.skillrow b{color:#e8ca8e}.notice{padding:10px;border-radius:8px;background:#3b362d;border:1px solid #716039;font-size:13px;margin-top:12px}.arena-stage{min-height:270px;background:radial-gradient(ellipse at center,#84664c,#332e31 75%);border:3px solid #745537;border-radius:12px;display:flex;align-items:center;justify-content:space-around;font-size:85px;position:relative}.arena-stage .fighter{transition:transform .18s;filter:drop-shadow(0 9px 8px #0007)}.arena-stage:before{content:"";position:absolute;bottom:14px;left:13%;right:13%;height:32px;border-radius:50%;background:#201c2080;filter:blur(10px)}.arena-stage .fighter{position:relative;z-index:1}.arena-stage .fighter.swing{transform:translateX(28px) rotate(12deg)}.arena-stage .fighter.struck{transform:translateX(15px) rotate(14deg);filter:drop-shadow(0 0 16px #ffd18e)}.arena-stage .fighter.hit{transform:translateX(-13px) rotate(-8deg)}.fightgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.fightgrid .panel{margin:0}.combat-log{height:170px;overflow:auto;background:#121a24;padding:10px;border-radius:8px;font-size:13px;line-height:1.65}.shopgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.shopitem{padding:13px;background:#18212d;border:1px solid #554c42;border-radius:9px}.shopitem b{color:#f0cc88}.shopitem p{font-size:12px;color:#bbb;margin:6px 0}.shopitem button{width:100%}.pill{font-size:12px;border:1px solid #69573b;border-radius:20px;padding:5px 10px;background:#312d29;color:#f2d18d}@media(max-width:850px){.layout{grid-template-columns:1fr}.modes{grid-template-columns:repeat(3,1fr)}.arena-stage{font-size:58px}.shopgrid{grid-template-columns:1fr}}@media(max-width:460px){.modes{grid-template-columns:repeat(2,1fr)}.scene{aspect-ratio:4/3}.fightgrid{grid-template-columns:1fr}}
+</style></head><body><header><h1>⚔ Argentum · Souls Lab</h1><nav><button class="tab active" data-view="train">🏋️ Entrenamiento</button><button class="tab" data-view="arena">⚔️ Arena</button><button class="tab" data-view="shop">🛒 Tienda</button></nav><span class="pill">🪙 <span id="coins">0</span> monedas</span></header><main>
+<section class="view active" id="train"><div class="layout"><div><div class="panel"><h2>La sala de entrenamiento</h2><div class="modes" id="modes"></div><p class="muted" id="instructions"></p><div class="scene" id="scene"><canvas id="cv" width="900" height="506"></canvas><div class="scene-overlay" id="overlay"><div><h3>Elegí una disciplina</h3><p>Presioná «Empezar» para entrenar durante 30 segundos.</p></div></div></div><div class="hud"><div class="stat"><strong id="timer">30.0</strong><span>Segundos</span></div><div class="stat"><strong id="score">0</strong><span>Puntos</span></div><div class="stat"><strong id="combo">0</strong><span>Combo</span></div><div class="stat"><strong id="perfect">0</strong><span>Perfectos</span></div></div><div class="actions"><button class="btn primary" id="start">▶ Empezar entrenamiento</button><button class="btn" id="stop">Detener</button></div><div class="notice" id="result">Las estadísticas que ganes entrenando se aplican a la arena.</div></div></div><aside><div class="panel"><h2>Tu guerrero</h2><div id="skills"></div><p class="muted">Cada entrenamiento mejora su atributo. Los combos y los aciertos perfectos otorgan más experiencia.</p></div><div class="panel"><h2>Cómo se juega</h2><p class="muted" id="guide"></p></div><div class="panel"><h2>Objetivo</h2><p class="muted">Entrená, mejorá tu equipo y superá tres rivales consecutivos en la arena. Es un prototipo para decidir qué minijuegos incorporar a Argentum Idle.</p></div></aside></div></section>
+<section class="view" id="arena"><div class="layout"><div><div class="panel"><h2>⚔️ Arena de rivales</h2><p class="muted">Combate automático contra tres o cinco rivales consecutivos. Tu héroe usa ataques básicos y vos decidís cuándo activar sus habilidades. Entrená para superar enemigos más fuertes.</p><div class="arena-stage"><span class="fighter" id="heroFigure">🛡️</span><span style="font-size:28px;color:#f7d48a">VS</span><span class="fighter" id="enemyFigure">👺</span></div><div class="fightgrid" style="margin-top:12px"><div class="panel"><b>Tu héroe</b><div class="meter"><div id="heroHp"></div></div><small id="heroHpText"></small></div><div class="panel"><b id="enemyName">Rival 1</b><div class="meter"><div id="enemyHp"></div></div><small id="enemyHpText"></small></div></div><div class="actions"><button class="btn primary" id="fightStart">⚔️ Iniciar desafío</button><button class="btn" id="skillSlash">🗡️ Doble golpe (8 s)</button><button class="btn" id="skillShield">🛡️ Guardia (10 s)</button><button class="btn" id="skillHeal">💚 Curar (20 s)</button></div><p class="muted" id="arenaStatus"></p><div class="combat-log" id="log"></div></div></div><aside><div class="panel"><h2>Rivales</h2><p>1. 🐀 Saqueador</p><p>2. 👺 Guardia duende</p><p>3. 💀 Campeón oscuro</p><p class="muted">Ganá la serie completa para obtener monedas y una victoria de arena. La dificultad sube con cada victoria.</p></div><div class="panel"><h2>Tu progreso</h2><div id="arenaStats"></div></div></aside></div></section>
+<section class="view" id="shop"><div class="panel"><h2>🛒 Herrería y mejoras</h2><p class="muted">Invertí las monedas que conseguís entrenando y ganando en la arena. Las mejoras se guardan en este navegador.</p><div class="shopgrid" id="shopList"></div></div></section>
+</main><script>
+'use strict';const $=id=>document.getElementById(id),clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),rand=(a,b)=>a+Math.random()*(b-a),rnd=(a,b)=>Math.floor(rand(a,b+1));const KEY='argentum_souls_fiel_v2';const DEFAULT={coins:0,wins:0,stats:{str:0,def:0,acc:0,dodge:0,crit:0},gear:{sword:0,armor:0,shield:0,bow:0}};let S;try{const o=JSON.parse(localStorage.getItem(KEY));S={...structuredClone(DEFAULT),...o,stats:{...DEFAULT.stats,...o?.stats},gear:{...DEFAULT.gear,...o?.gear}}}catch{S=structuredClone(DEFAULT)}const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch{}};const MODES={str:{name:'Fuerza',icon:'🗡️',desc:'El muñeco lanza manzanas desde la derecha, a distintas alturas. Respondé con ←, ↑ o ↓ según su trayectoria. A veces aparece una estrella detrás tuyo: presioná → para atraparla.',guide:'Usá las flechas ← ↑ ↓ (o A W S). La manzana se aproxima al guerrero: golpeala cuando esté cerca. La estrella dorada aparece a tu espalda: pulsá → (o D) antes de que desaparezca.'},def:{name:'Defensa',icon:'🛡️',desc:'Las manzanas llegan desde todas las direcciones. Mové el mouse alrededor de tu guerrero: el escudo gira siguiendo tu cursor y bloquea los proyectiles.',guide:'Mové el mouse (o el dedo) alrededor del personaje para orientar el escudo. No hace falta hacer clic. Bloqueá cada manzana con el escudo justo cuando llegue.'},acc:{name:'Precisión',icon:'🎯',desc:'Aparecen objetivos circulares que desaparecen. Hacé clic antes de que se agote su tiempo; algunos se mueven y cada vez aparecen más.',guide:'Hacé clic directamente en los círculos rojos antes de que desaparezcan. Acertar cerca del centro da PERFECTO. Los blancos se multiplican y algunos se desplazan.'},dodge:{name:'Esquiva',icon:'💨',desc:'El muñeco anuncia golpes desde izquierda, derecha, arriba o abajo. Esquivalos con las flechas correctas antes del impacto.',guide:'Cuando el muñeco prepare un golpe, aparece una señal. Usá ↑ para saltar un barrido bajo, ↓ para agacharte ante un golpe alto, ← o → para evitar un golpe lateral. Tenés que reaccionar antes del impacto.'},crit:{name:'Crítico',icon:'✨',desc:'Una aguja recorre la barra. Presioná ESPACIO cuando pase por la franja verde; cuanto más cerca del centro, mejor el crítico.',guide:'Pulsá ESPACIO o hacé clic cuando la aguja esté dentro de la franja verde. Los aciertos perfectos dan más puntos. Cada intento reinicia el recorrido.'}};
+let mode='str',T=null,keys=new Set(),pointer={x:300,y:300},last=performance.now(),toast=null;const cv=$('cv'),ctx=cv.getContext('2d');function initModes(){$('modes').innerHTML=Object.entries(MODES).map(([k,m])=>`<button class="mode ${k===mode?'active':''}" data-mode="${k}"><span class="emoji">${m.icon}</span>${m.name}</button>`).join('');document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{if(T?.running)endTrain(true);mode=b.dataset.mode;T=null;initModes();showGuide();draw();});}function showGuide(){$('instructions').textContent=MODES[mode].desc;$('guide').textContent=MODES[mode].guide;}function renderStats(){$('coins').textContent=S.coins.toLocaleString('es-AR');$('skills').innerHTML=Object.entries(MODES).map(([k,m])=>`<div class="skillrow"><div><span>${m.icon} ${m.name}</span><b>Nv ${S.stats[k]}</b></div><div class="meter"><div style="width:${clamp(S.stats[k],0,100)}%"></div></div></div>`).join('');$('arenaStats').innerHTML=`<p>🏆 Victorias: <b>${S.wins}</b></p><p>🪙 Monedas: <b>${S.coins}</b></p><p>🗡️ Fuerza: ${S.stats.str}</p><p>🛡️ Defensa: ${S.stats.def}</p><p>🎯 Precisión: ${S.stats.acc}</p><p>💨 Esquiva: ${S.stats.dodge}</p><p>✨ Crítico: ${S.stats.crit}</p>`;renderShop();}
+function startTrain(){T={running:true,time:0,duration:30,score:0,combo:0,best:0,perfect:0,miss:0,spawn:0,objects:[],flash:0,seq:0,needle:0,phase:0,target:rand(.28,.7),starTimer:7,critStage:'wait',critClock:0,critDelay:.5,critFake:false,critHits:0,critSignals:0,critAnim:0};toast=null;$('overlay').classList.add('hidden');$('result').textContent='¡Entrenamiento en curso!';updateHUD();}function endTrain(cancel=false){if(!T||!T.running)return;T.running=false;if(!cancel){const gained=Math.max(1,Math.min(7,Math.floor(T.score/16)+Math.floor(T.perfect/8)));S.stats[mode]=Math.min(100,S.stats[mode]+gained);const reward=Math.floor(T.score/3);S.coins+=reward;$('result').textContent=`${MODES[mode].name}: +${gained} niveles de entrenamiento · +${reward} monedas · ${T.perfect} perfectos · mejor combo ${T.best}.`;save();renderStats();}else $('result').textContent='Entrenamiento detenido.';$('overlay').classList.remove('hidden');$('overlay').innerHTML=`<div><h3>${cancel?'Entrenamiento detenido':'¡Sesión completada!'}</h3><p>${cancel?'Podés elegir otra disciplina.':$('result').textContent}</p></div>`;updateHUD();}function updateHUD(){$('timer').textContent=Math.max(0,(T?.duration||30)-(T?.time||0)).toFixed(1);$('score').textContent=T?.score||0;$('combo').textContent=T?.combo||0;$('perfect').textContent=T?.perfect||0;}function good(perfect=false){if(!T?.running)return;T.combo++;T.best=Math.max(T.best,T.combo);T.score+=perfect?5:3;if(perfect)T.perfect++;toast={text:perfect?'¡PERFECTO!':'¡BIEN!',color:perfect?'#ffe581':'#b8f2ae',t:.55};updateHUD();}function bad(){if(!T?.running)return;T.combo=0;T.miss++;toast={text:'FALLO',color:'#ffc0b2',t:.48};updateHUD();}
+function spawnStrength(){const lane=rnd(0,2);T.objects.push({type:'apple',lane,x:770,y:[185,280,380][lane],speed:rand(250,315)+T.time*3,r:18});}function spawnDef(){const angle=rand(-Math.PI,Math.PI),r=380;T.objects.push({type:'apple',x:450+Math.cos(angle)*r,y:270+Math.sin(angle)*r,vx:-Math.cos(angle)*(170+T.time*3),vy:-Math.sin(angle)*(170+T.time*3),r:17});}function spawnAcc(){let x=rand(100,800),y=rand(105,425),moving=Math.random()<Math.min(.65,.12+T.time/60);T.objects.push({x,y,r:rand(23,31),life:rand(1.2,1.9)-T.time*.011,max:1.9,vx:moving?rand(-95,95):0,vy:moving?rand(-75,75):0});}function spawnDodge(){const kind=['low','high','left','right'][rnd(0,3)];T.objects.push({kind,t:0,windup:Math.max(.55,1.25-T.time*.014),resolved:false});}
+function tick(dt){if(!T?.running)return;T.time+=dt;if(T.time>=T.duration){T.time=T.duration;endTrain();return;}T.flash=Math.max(0,T.flash-dt);T.spawn-=dt;const difficulty=T.time/T.duration;if(mode==='str'){if(T.spawn<=0){spawnStrength();T.spawn=rand(.85,1.28)-difficulty*.28;}T.starTimer-=dt;if(T.starTimer<=0){T.objects.push({type:'star',x:95,y:rand(205,340),life:1.7});T.starTimer=rand(6,9);}for(let i=T.objects.length-1;i>=0;i--){let o=T.objects[i];if(o.type==='star'){o.life-=dt;if(o.life<=0){T.objects.splice(i,1);bad();}}else{o.x-=o.speed*dt;if(o.x<240){T.objects.splice(i,1);bad();}}}}else if(mode==='def'){if(T.spawn<=0){spawnDef();T.spawn=rand(.62,1.05)-difficulty*.24;}for(let i=T.objects.length-1;i>=0;i--){let o=T.objects[i];o.x+=o.vx*dt;o.y+=o.vy*dt;const d=Math.hypot(o.x-450,o.y-270),angle=Math.atan2(o.y-270,o.x-450),aim=Math.atan2(pointer.y-270,pointer.x-450);const delta=Math.atan2(Math.sin(angle-aim),Math.cos(angle-aim));if(d<100&&d>58&&Math.abs(delta)<.48){T.objects.splice(i,1);good(Math.abs(delta)<.19);}else if(d<54){T.objects.splice(i,1);bad();}}}else if(mode==='acc'){if(T.spawn<=0){spawnAcc();T.spawn=Math.max(.27,.86-difficulty*.5);if(difficulty>.48&&Math.random()<.3)spawnAcc();}for(let i=T.objects.length-1;i>=0;i--){let o=T.objects[i];o.life-=dt;o.x+=o.vx*dt;o.y+=o.vy*dt;if(o.x<o.r+10||o.x>900-o.r-10)o.vx*=-1;if(o.y<o.r+60||o.y>506-o.r-15)o.vy*=-1;if(o.life<=0){T.objects.splice(i,1);bad();}}}else if(mode==='dodge'){if(T.spawn<=0&&T.objects.length===0){spawnDodge();T.spawn=.3;}for(let i=T.objects.length-1;i>=0;i--){let o=T.objects[i];o.t+=dt;if(o.t>=o.windup&&!o.resolved){T.objects.splice(i,1);bad();T.spawn=.4;}}}else if(mode==='crit'){tickCritical(dt,difficulty);}if(toast){toast.t-=dt;if(toast.t<=0)toast=null;}updateHUD();}
+function inputAction(key){if(!T?.running)return;key=key.toLowerCase();const map={arrowleft:'left',a:'left',arrowright:'right',d:'right',arrowup:'up',w:'up',arrowdown:'down',s:'down'};const dir=map[key];if(mode==='str'&&dir){if(dir==='right'){let i=T.objects.findIndex(o=>o.type==='star');if(i>=0){T.objects.splice(i,1);good(true);}else bad();return;}const lane={up:0,left:1,down:2}[dir];if(lane===undefined)return;let best=-1,dist=1e6;T.objects.forEach((o,i)=>{if(o.type==='apple'&&o.lane===lane&&Math.abs(o.x-285)<dist){best=i;dist=Math.abs(o.x-285);}});if(best>=0&&dist<105){T.objects.splice(best,1);good(dist<38);}else bad();}else if(mode==='dodge'&&dir){const o=T.objects[0];if(!o){bad();return;}const required={low:'up',high:'down',left:'right',right:'left'}[o.kind];if(dir===required){T.objects.shift();good(o.t>o.windup*.53);T.spawn=.4;}else{T.objects.shift();bad();T.spawn=.4;}}else if(mode==='crit'&&(key===' '||key==='enter'||key==='click')){pressCritical();}}
+document.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)&&$('train').classList.contains('active'))e.preventDefault();if(e.repeat)return;if($('train').classList.contains('active'))inputAction(e.key);});cv.addEventListener('pointermove',e=>{const r=cv.getBoundingClientRect();pointer={x:(e.clientX-r.left)*900/r.width,y:(e.clientY-r.top)*506/r.height};});cv.addEventListener('pointerdown',e=>{if(!T?.running)return;const r=cv.getBoundingClientRect(),x=(e.clientX-r.left)*900/r.width,y=(e.clientY-r.top)*506/r.height;pointer={x,y};if(mode==='acc'){let best=-1,dist=1e6;T.objects.forEach((o,i)=>{const d=Math.hypot(x-o.x,y-o.y);if(d<o.r+7&&d<dist){dist=d;best=i;}});if(best>=0){const o=T.objects.splice(best,1)[0];good(dist<o.r*.43);}else bad();}else if(mode==='crit')inputAction('click');});
+
+// Entrenamiento de crítico: dos pulsaciones por combo, con amagues de calavera.
+function resetCritical(delay=.35){if(!T)return;T.critStage='wait';T.critClock=0;T.critDelay=delay;T.critFake=false;}
+function tickCritical(dt,difficulty){
+  T.critClock+=dt;
+  const stage=T.critStage;
+  if(stage==='wait'&&T.critClock>=T.critDelay){
+    T.critStage=Math.random()<.33?'fake':'ready';T.critClock=0;T.critSignals++;
+  }else if(stage==='fake'&&T.critClock>=Math.max(.62,.96-difficulty*.2)){
+    // El amague se supera dejando pasar la señal.
+    T.score+=1;resetCritical(rand(.26,.56));
+  }else if(stage==='ready'&&T.critClock>=Math.max(.58,1.05-difficulty*.27)){
+    bad();resetCritical(.42);
+  }else if(stage==='jump'&&T.critClock>=.37){
+    T.critStage='air';T.critClock=0;
+  }else if(stage==='air'&&T.critClock>=Math.max(.56,.94-difficulty*.25)){
+    bad();resetCritical(.46);
+  }else if(stage==='impact'&&T.critClock>=.42){resetCritical(rand(.3,.65));}
+}
+function pressCritical(){
+  if(!T?.running||mode!=='crit')return;
+  if(T.critStage==='ready'){
+    T.critStage='jump';T.critClock=0;
+    toast={text:'¡SALTÁ Y PREPARÁ EL GOLPE!',color:'#e4f8ff',t:.35};
+  }else if(T.critStage==='air'){
+    const perfect=T.critClock>=.12&&T.critClock<=.47;
+    good(perfect);T.critHits++;
+    T.critStage='impact';T.critClock=0;
+  }else if(T.critStage==='fake'||T.critStage==='wait'||T.critStage==='jump'){
+    bad();resetCritical(.45);
+  }
+}
+function drawCritical(){
+  const stage=T?.critStage||'wait',t=T?.critClock||0;
+  const jumping=stage==='jump'||stage==='air'||stage==='impact';
+  const y=jumping?(330-125*Math.sin(Math.PI*clamp((stage==='jump'?.15+t*.85:stage==='air'?.48+t*.37:.86),0,1))):330;
+  drawHero(jumping?430:245,y);drawDummy(695,330);
+  roundedRect(155,27,590,69,13,'#513b2bcf');
+  const signals={wait:['OBSERVÁ AL MUÑECO','#ffebc7'],fake:['☠️ ¡AMAGUE! NO TOQUES','#ff9e9e'],ready:['⚔️ ¡AHORA! PULSÁ','#b9ffc5'],jump:['¡SALTANDO! PREPARATE','#d5e9ff'],air:['✨ ¡GOLPE! PULSÁ DE NUEVO','#fff39a'],impact:['💥 ¡CRÍTICO CONECTADO!','#b5ffd2']};
+  const [label,color]=signals[stage];text(label,450,71,27,color);
+  // La calavera imita la señal de ataque; si pulsás, perdés el combo.
+  if(stage==='fake'){text('☠️',690,185,66);text('NO PULSES',450,135,24,'#76312d');}
+  if(stage==='ready'){text('❗',692,185,64);text('ESPACIO / CLIC',450,137,24,'#4c5531');}
+  if(stage==='air'){text('⚡',525,213,60);text('SEGUNDO TOQUE',450,160,23,'#4d422d');}
+  if(stage==='impact'){text('💥',565,210,66);}
+  if(stage==='wait')text('Una señal puede ser real o un amague',450,151,19,'#583d2e');
+  roundedRect(240,446,420,15,7,'#674834');
+  const limit=stage==='fake'?.96:stage==='ready'?1.05:stage==='air'?.94:.6;
+  roundedRect(243,449,414*clamp(t/limit,0,1),9,5,stage==='fake'?'#d8817d':'#e9d18d');
+  text('Calavera = esperar   ·   Exclamación = tocar   ·   En el aire = tocar otra vez',450,485,16,'#54382a');
+}
+function roundedRect(x,y,w,h,r,fill){ctx.fillStyle=fill;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill();}function circle(x,y,r,fill,stroke){ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle=fill;ctx.fill();if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=3;ctx.stroke();}}function text(t,x,y,size=20,color='#fff5da',align='center'){ctx.font=`bold ${size}px system-ui`;ctx.fillStyle=color;ctx.textAlign=align;ctx.fillText(t,x,y);}function drawRoom(){ctx.fillStyle='#bd825b';ctx.fillRect(0,0,900,506);ctx.fillStyle='#c99169';ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(900,0);ctx.lineTo(770,380);ctx.lineTo(130,380);ctx.closePath();ctx.fill();ctx.fillStyle='#a66b49';ctx.beginPath();ctx.moveTo(0,506);ctx.lineTo(130,380);ctx.lineTo(770,380);ctx.lineTo(900,506);ctx.fill();ctx.strokeStyle='#8d5c42';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(130,0);ctx.lineTo(130,380);ctx.lineTo(770,380);ctx.lineTo(770,0);ctx.stroke();ctx.fillStyle='#f8e6b3';ctx.beginPath();ctx.ellipse(62,180,35,65,0,Math.PI,2*Math.PI);ctx.fill();ctx.strokeStyle='#9d6c50';ctx.lineWidth=6;ctx.stroke();ctx.globalAlpha=.13;for(let i=0;i<45;i++){let x=(i*163+61)%900,y=(i*101+43)%506;ctx.fillStyle=i%3?'#663b2b':'#ffe4ba';ctx.fillRect(x,y,10+(i%4)*8,2+(i%3)*3);}ctx.globalAlpha=1;}
+function drawHero(x=270,y=322){circle(x,y-57,30,'#443c34','#201c1a');circle(x+9,y-63,7,'#f3e26b');roundedRect(x-24,y-28,46,70,10,'#494238');ctx.strokeStyle='#211d1a';ctx.lineWidth=10;ctx.beginPath();ctx.moveTo(x-8,y+35);ctx.lineTo(x-22,y+60);ctx.moveTo(x+8,y+35);ctx.lineTo(x+25,y+60);ctx.stroke();circle(x+38,y-3,26,'#6b6a62','#302e2a');circle(x+38,y-3,15,'#a6a6a0','#373630');ctx.save();ctx.translate(x-34,y-10);ctx.rotate(-.45);roundedRect(-5,-55,10,86,3,'#e4c17c');ctx.restore();}function drawDummy(x=690,y=305){ctx.strokeStyle='#6a4930';ctx.lineWidth=13;ctx.beginPath();ctx.moveTo(x,y-30);ctx.lineTo(x,y+95);ctx.moveTo(x-58,y-14);ctx.lineTo(x+58,y-14);ctx.stroke();circle(x,y-78,36,'#cfc2a5','#5d493b');roundedRect(x-28,y-45,56,79,13,'#d2c4a9');circle(x-13,y-81,5,'#566b63');circle(x+13,y-81,5,'#566b63');roundedRect(x-33,y-130,66,23,3,'#34292b');roundedRect(x-24,y-160,48,35,3,'#453338');}
+function draw(){drawRoom();if(mode==='str'){drawHero(270,335);drawDummy(735,330);if(T)for(const o of T.objects){if(o.type==='star')text('⭐',o.x,o.y,42);else text('🍎',o.x,o.y+12,36);}text('↑ Arriba    ← Medio    ↓ Abajo     → Estrella',450,48,19,'#563c2c');}if(mode==='def'){drawHero(450,300);const a=Math.atan2(pointer.y-270,pointer.x-450);ctx.save();ctx.translate(450,270);ctx.rotate(a);roundedRect(57,-35,23,70,9,'#b8bcc0');roundedRect(61,-27,15,54,7,'#525b66');ctx.restore();if(T)for(const o of T.objects)text('🍎',o.x,o.y+10,33);text('MOVÉ EL MOUSE PARA GIRAR EL ESCUDO',450,48,20,'#563c2c');}if(mode==='acc'){drawDummy(760,340);if(T)for(const o of T.objects){circle(o.x,o.y,o.r,'#efe3c9','#6c3f30');circle(o.x,o.y,o.r*.7,'#b84d3c');circle(o.x,o.y,o.r*.34,'#f4e8ce');ctx.strokeStyle='#f6d580';ctx.lineWidth=4;ctx.beginPath();ctx.arc(o.x,o.y,o.r+7,-Math.PI/2,-Math.PI/2+Math.PI*2*clamp(o.life/o.max,0,1));ctx.stroke();}text('CLIC EN LOS OBJETIVOS ANTES DE QUE DESAPAREZCAN',450,48,18,'#563c2c');}if(mode==='dodge'){drawHero(260,330);drawDummy(705,330);const o=T?.objects[0];if(o){const labels={low:'⚠️ BARRIDO BAJO → SALTÁ ↑',high:'⚠️ GOLPE ALTO → AGACHATE ↓',left:'⚠️ ATAQUE IZQUIERDO → DERECHA →',right:'⚠️ ATAQUE DERECHO → IZQUIERDA ←'};roundedRect(160,74,580,57,10,'#4d3329');text(labels[o.kind],450,111,23,'#ffe8b0');roundedRect(200,147,500,13,5,'#6c4a35');roundedRect(200,147,500*clamp(1-o.t/o.windup,0,1),13,5,'#eecb75');ctx.save();ctx.translate(705,310);ctx.rotate(Math.sin(o.t*10)*.35);ctx.strokeStyle='#eee1bf';ctx.lineWidth=12;ctx.beginPath();ctx.moveTo(-40,-30);ctx.lineTo(-110,-75);ctx.stroke();ctx.restore();}else text('PREPARATE PARA ESQUIVAR EL PRÓXIMO GOLPE',450,70,20,'#563c2c');}if(mode==='crit'){drawCritical();}if(T?.running){roundedRect(270,12,360,22,10,'#4b332a');roundedRect(274,16,352*(1-T.time/T.duration),14,8,'#c7e3d8');text(`${Math.ceil(T.duration-T.time)} s`,450,58,19,'#533b2d');}if(toast)text(toast.text,450,180,33,toast.color);}
+let frame=performance.now();function loop(now){const dt=Math.min(.045,(now-frame)/1000);frame=now;if($('train').classList.contains('active')){tick(dt);draw();}tickArena(dt);requestAnimationFrame(loop);}function setView(id){document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.view===id));document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));if(id!=='train'&&T?.running)endTrain(true);if(id==='arena')renderArena();}document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>setView(b.dataset.view));$('start').onclick=startTrain;$('stop').onclick=()=>endTrain(true);
+const SHOP={sword:{n:'Espada templada',desc:'+5 daño por nivel',base:35},armor:{n:'Armadura reforzada',desc:'+25 vida máxima por nivel',base:40},shield:{n:'Escudo resistente',desc:'+3 defensa por nivel',base:35},bow:{n:'Arco de precisión',desc:'+4 daño especial por nivel',base:40}};function renderShop(){$('shopList').innerHTML=Object.entries(SHOP).map(([k,v])=>{const lv=S.gear[k],cost=v.base*(lv+1);return `<div class="shopitem"><b>${v.n} · Nv ${lv}</b><p>${v.desc}</p><button class="btn" data-buy="${k}" ${S.coins<cost?'disabled':''}>Mejorar · ${cost} 🪙</button></div>`}).join('');document.querySelectorAll('[data-buy]').forEach(b=>b.onclick=()=>{const k=b.dataset.buy,c=SHOP[k].base*(S.gear[k]+1);if(S.coins<c)return;S.coins-=c;S.gear[k]++;save();renderStats();});}
+const ENEMIES=[{name:'Saqueador',icon:'🐀',hp:85,atk:8},{name:'Guardia duende',icon:'👺',hp:135,atk:13},{name:'Campeón oscuro',icon:'💀',hp:205,atk:19}];let A=null;const maxHP=()=>125+S.gear.armor*25+S.stats.def*3+S.stats.dodge;function animateFighter(id,cls){const el=$(id);el.classList.remove('swing','struck');void el.offsetWidth;el.classList.add(cls);setTimeout(()=>el.classList.remove(cls),210);}function combatLog(s){const div=document.createElement('div');div.textContent=s;$('log').prepend(div);}function startArena(){A={wave:0,hero:maxHP(),enemy:0,enemyMax:0,clock:0,enemyClock:0,cd:{slash:0,shield:0,heal:0},guard:0,stun:0,over:false};$('log').innerHTML='';nextEnemy();combatLog('⚔️ ¡Comienza el desafío de tres rivales!');renderArena();}function nextEnemy(){const e=ENEMIES[A.wave];A.enemyMax=e.hp+S.wins*18;A.enemy=A.enemyMax;A.enemyClock=0;$('enemyFigure').textContent=e.icon;combatLog(`Rival ${A.wave+1}/3: ${e.name}`);}function deal(d){if(!A||A.over)return;animateFighter('heroFigure','swing');animateFighter('enemyFigure','struck');A.enemy=Math.max(0,A.enemy-d);combatLog(`🗡️ Infligís ${Math.round(d)} de daño.`);if(A.enemy<=0){A.wave++;if(A.wave>=3){A.over=true;const gold=120+S.wins*35;S.wins++;S.coins+=gold;combatLog(`🏆 ¡Victoria! Derrotaste a los tres. +${gold} monedas.`);save();renderStats();}else{A.hero=Math.min(maxHP(),A.hero+Math.round(maxHP()*.12));nextEnemy();}}renderArena();}function tickArena(dt){if(!A||A.over||!$('arena').classList.contains('active'))return;A.clock+=dt;A.enemyClock+=dt;for(const k in A.cd)A.cd[k]=Math.max(0,A.cd[k]-dt);A.guard=Math.max(0,A.guard-dt);if(A.clock>=1.5){A.clock=0;const base=12+S.gear.sword*5+S.stats.str*1.5;const crit=Math.random()<Math.min(.5,.05+S.stats.crit*.014);deal(base*(crit?2:1));if(crit)combatLog('✨ ¡Crítico automático!');}if(A?.over)return;if(A.enemyClock>=2.1){A.enemyClock=0;const evade=Math.random()<Math.min(.42,S.stats.dodge*.015);if(evade)combatLog('💨 ¡Esquivaste el ataque!');else{const e=ENEMIES[A.wave];const dmg=Math.max(1,(e.atk+S.wins*2-S.gear.shield*3-S.stats.def*.4)*(A.guard>0?.38:1));A.hero=Math.max(0,A.hero-dmg);animateFighter('heroFigure','struck');combatLog(`💥 ${e.name} te golpea por ${Math.round(dmg)}.`);if(A.hero<=0){A.over=true;combatLog('💀 Derrota. Podés reintentar sin perder progreso.');}}}renderArena();}function ability(k){if(!A||A.over||A.cd[k]>0)return;if(k==='slash'){A.cd.slash=8;deal((20+S.stats.str*2+S.gear.sword*4)*2);combatLog('⚔️ ¡Doble golpe!');}if(k==='shield'){A.cd.shield=10;A.guard=4;combatLog('🛡️ Guardia activada: reducís daño durante 4 s.');}if(k==='heal'){A.cd.heal=20;A.hero=Math.min(maxHP(),A.hero+Math.round(maxHP()*.33));combatLog('💚 Recuperás vida.');}renderArena();}function renderArena(){const h=A?.hero??maxHP(),e=A?.enemy??ENEMIES[0].hp,em=A?.enemyMax??ENEMIES[0].hp;$('heroHp').style.width=clamp(h/maxHP()*100,0,100)+'%';$('heroHpText').textContent=`${Math.round(h)} / ${maxHP()} HP`;$('enemyHp').style.width=clamp(e/em*100,0,100)+'%';$('enemyHpText').textContent=`${Math.round(e)} / ${em} HP`;$('enemyName').textContent=A?.over&&A.wave>=3?'¡Campeón!':ENEMIES[Math.min(A?.wave??0,2)].name;$('arenaStatus').textContent=A?(A.over?'Desafío terminado. Podés iniciar otro.':`Rival ${A.wave+1} de 3 · Ataques automáticos activos`):'Presioná iniciar para comenzar.';for(const [id,k] of [['skillSlash','slash'],['skillShield','shield'],['skillHeal','heal']]){$(id).disabled=!A||A.over||A.cd[k]>0;$ (id).textContent=({slash:'🗡️ Doble golpe',shield:'🛡️ Guardia',heal:'💚 Curar'}[k])+(A?.cd[k]>0?` (${Math.ceil(A.cd[k])}s)`:'');}}$('fightStart').onclick=startArena;$('skillSlash').onclick=()=>ability('slash');$('skillShield').onclick=()=>ability('shield');$('skillHeal').onclick=()=>ability('heal');initModes();showGuide();renderStats();renderArena();requestAnimationFrame(loop);
+</script><script>
+/* Souls Lab: animaciones, misiones y arenas experimentales.
+   No lee ni modifica el guardado v7 de Argentum Idle. */
+(function(){
+'use strict';
+const lab={arenaWaves:3,sound:true,pose:'',poseLeft:0,sparks:[],slashes:[],lastHit:-9999,hits:0,missionDone:false,flash:0,audio:null};
+window.SoulsLab=lab;
+S.stations=Object.assign({str:0,def:0,acc:0,dodge:0,crit:0},S.stations||{});
+MODES.crit.desc='Calavera = amague: NO toques. Exclamación = pulsá para saltar. En el aire pulsá una segunda vez para conectar el crítico.';
+MODES.crit.guide='☠ Esperá sin tocar. ❗ Pulsá ESPACIO o clic. ⚡ En el aire, pulsá de nuevo. Si tocás un amague, perdés el combo.';
+MODES.str.desc='Cortá las manzanas que llegan desde tres alturas con ↑, ← o ↓. Cada espadazo barre una zona y puede romper varias. Una estrella a tu espalda se recoge con →.';
+MODES.dodge.desc='Reaccioná a la señal del muñeco: el guerrero salta, se agacha o hace un dash lateral.';
+showGuide();
+const style=document.createElement('style');
+style.textContent='.souls-touch{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;margin:10px 0}.souls-touch button{min-width:80px;min-height:44px;border:1px solid #c79854;background:#4a3b31;color:#ffe9bc;border-radius:9px;font-weight:700;touch-action:manipulation}.souls-touch button:active{background:#c99149;color:#21160f;transform:translateY(2px)}.souls-arena-select{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:10px 0 14px}#soulsMission{border-color:#a88752;color:#f6dc9e;font-weight:650}';
+document.head.appendChild(style);
+const missions={str:'Cortá 12 objetos y alcanzá combo x5',def:'Bloqueá 12 manzanas y alcanzá combo x5',acc:'Acertá 12 blancos y alcanzá combo x5',dodge:'Esquivá 12 ataques y alcanzá combo x5',crit:'Conectá 12 críticos y alcanzá combo x5'};
+const mission=document.createElement('div');mission.className='notice';mission.id='soulsMission';mission.setAttribute('aria-live','polite');$('scene').insertAdjacentElement('afterend',mission);
+const touch=document.createElement('div');touch.className='souls-touch';
+touch.innerHTML='<button type="button" data-key="ArrowLeft">← Izq.</button><button type="button" data-key="ArrowUp">↑ Arriba</button><button type="button" data-key="ArrowDown">↓ Abajo</button><button type="button" data-key="ArrowRight">→ Der.</button><button type="button" data-key=" ">⚡ Acción</button>';
+mission.insertAdjacentElement('afterend',touch);
+touch.querySelectorAll('button').forEach(function(b){b.addEventListener('pointerdown',function(e){e.preventDefault();inputAction(b.dataset.key);});});
+const audioBtn=document.createElement('button');audioBtn.className='btn';audioBtn.type='button';audioBtn.textContent='🔊 Sonido: sí';
+audioBtn.onclick=function(){lab.sound=!lab.sound;audioBtn.textContent=lab.sound?'🔊 Sonido: sí':'🔇 Sonido: no';};
+$('stop').insertAdjacentElement('afterend',audioBtn);
+function renderMission(){mission.textContent='🎖 MISIÓN · '+missions[mode]+' | Aciertos '+lab.hits+'/12 | Mejor combo '+(T?.best||0)+'/5'+(lab.missionDone?' ✓ COMPLETA':'');}
+renderMission();
+function tone(freq,duration,type){
+ if(!lab.sound)return;
+ try{
+  const C=window.AudioContext||window.webkitAudioContext;if(!C)return;
+  if(!lab.audio)lab.audio=new C();
+  if(lab.audio.state==='suspended')lab.audio.resume();
+  const o=lab.audio.createOscillator(),g=lab.audio.createGain();
+  o.type=type||'triangle';o.frequency.setValueAtTime(freq,lab.audio.currentTime);
+  o.frequency.exponentialRampToValueAtTime(Math.max(100,freq*.6),lab.audio.currentTime+duration);
+  g.gain.setValueAtTime(.05,lab.audio.currentTime);g.gain.exponentialRampToValueAtTime(.001,lab.audio.currentTime+duration);
+  o.connect(g);g.connect(lab.audio.destination);o.start();o.stop(lab.audio.currentTime+duration);
+ }catch(e){/* Audio opcional */}
+}
+function burst(x,y,color,n){
+ const count=n||9;
+ for(let i=0;i<count;i++){
+  const a=Math.PI*2*i/count+Math.random()*.5,v=75+Math.random()*135;
+  lab.sparks.push({x:x,y:y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-35,life:.35+Math.random()*.19,max:.54,color:color||'#ffe09c'});
+ }
+ if(lab.sparks.length>120)lab.sparks.splice(0,lab.sparks.length-120);
+}
+function pose(name,time){lab.pose=name;lab.poseLeft=time||.3;}
+const baseGood=good;
+good=function(perfect){
+ baseGood(perfect);lab.hits++;
+ if(mode==='def'){pose('block',.19);burst(500,260,'#c3edff',7);}
+ if(mode==='acc')burst(pointer.x,pointer.y,'#ffe6a1',11);
+ if(mode==='crit'){pose('slash',.28);burst(540,218,'#f6ec9a',15);}
+ tone(perfect?720:520,.09);renderMission();
+};
+const baseBad=bad;
+bad=function(){baseBad();lab.flash=.16;tone(190,.12,'sawtooth');renderMission();};
+const baseStart=startTrain;
+startTrain=function(){
+ lab.hits=0;lab.missionDone=false;lab.pose='';lab.poseLeft=0;lab.sparks.length=0;lab.slashes.length=0;lab.lastHit=-9999;
+ baseStart();renderMission();
+};
+$('start').onclick=startTrain;
+const baseEnd=endTrain;
+endTrain=function(cancel){
+ if(!T?.running)return;
+ const completed=!cancel&&lab.hits>=12&&T.best>=5,station=S.stations[mode]||0;
+ baseEnd(cancel);
+ if(!cancel){
+  const bonusLevels=Math.min(station,Math.max(0,100-S.stats[mode]));
+  S.stats[mode]+=bonusLevels;
+  const gold=completed?35+station*10:0;S.coins+=gold;lab.missionDone=completed;
+  if(bonusLevels||gold){
+   $('result').textContent+=(bonusLevels?' · +'+bonusLevels+' niveles por estación':'')+(gold?' · +'+gold+' monedas por misión':'');
+   $('overlay').querySelector('p').textContent=$('result').textContent;
+   save();renderStats();
+  }
+ }
+ renderMission();
+};
+$('stop').onclick=function(){endTrain(true);};
+const baseInput=inputAction;
+inputAction=function(key){
+ if(!T?.running)return;
+ const dir={arrowup:'up',w:'up',arrowleft:'left',a:'left',arrowdown:'down',s:'down',arrowright:'right',d:'right'}[String(key).toLowerCase()];
+ if(mode==='str'&&dir){
+  if(dir==='right'){
+   const idx=T.objects.findIndex(function(o){return o.type==='star';});
+   if(idx<0){bad();return;}
+   const star=T.objects.splice(idx,1)[0];pose('back',.27);burst(star.x,star.y,'#f9da74',15);good(true);return;
+  }
+  const lane={up:0,left:1,down:2}[dir];if(lane===undefined)return;
+  const y=[185,280,380][lane],hits=[];
+  for(let i=T.objects.length-1;i>=0;i--){
+   const o=T.objects[i];
+   if(o.type==='apple'&&Math.abs(o.x-285)<118&&Math.abs(o.y-y)<35){hits.push(o);T.objects.splice(i,1);}
+  }
+  pose(dir==='down'?'low':dir==='up'?'high':'slash',.3);
+  lab.slashes.push({x:312,y:y,life:.24,max:.24});
+  if(!hits.length){bad();return;}
+  hits.forEach(function(o){burst(o.x,o.y,'#ffdc8c',11);good(Math.abs(o.x-285)<43);});
+  const now=performance.now();
+  if(now-lab.lastHit<420){T.score+=2;toast={text:'⚡ ¡CADENA!',color:'#fff4a5',t:.45};}
+  lab.lastHit=now;updateHUD();return;
+ }
+ if(mode==='dodge'&&dir){
+  const o=T.objects[0];
+  if(o&&dir===({low:'up',high:'down',left:'right',right:'left'}[o.kind]))
+   pose(dir==='up'?'jump':dir==='down'?'low':'dash',.35);
+ }
+ baseInput(key);
+};
+const basePressCritical=pressCritical;
+pressCritical=function(){
+ if(T?.running&&mode==='crit'){
+  if(T.critStage==='ready')pose('jump',.4);
+  if(T.critStage==='air')pose('slash',.32);
+ }
+ basePressCritical();
+};
+const baseTick=tick;
+tick=function(dt){
+ baseTick(dt);lab.poseLeft=Math.max(0,lab.poseLeft-dt);lab.flash=Math.max(0,lab.flash-dt);
+ for(let i=lab.sparks.length-1;i>=0;i--){
+  const p=lab.sparks[i];p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=300*dt;p.life-=dt;
+  if(p.life<=0)lab.sparks.splice(i,1);
+ }
+ for(let i=lab.slashes.length-1;i>=0;i--){lab.slashes[i].life-=dt;if(lab.slashes[i].life<=0)lab.slashes.splice(i,1);}
+};
+const baseHero=drawHero;
+drawHero=function(x,y){
+ const active=lab.poseLeft>0&&T?.running,progress=active?lab.poseLeft/.35:0;
+ let dx=0,dy=0;
+ if(active){
+  if(lab.pose==='jump'||lab.pose==='high')dy=-22*Math.sin(Math.PI*Math.min(1,1-progress));
+  if(lab.pose==='low')dy=17;
+  if(lab.pose==='dash')dx=33*(1-progress);
+  if(lab.pose==='slash')dx=23*(1-progress);
+  if(lab.pose==='back')dx=-22*(1-progress);
+ }
+ if(active&&(lab.pose==='dash'||lab.pose==='slash'||lab.pose==='back')){
+  ctx.save();ctx.globalAlpha=.14*progress;baseHero(x-dx*.7,y+dy);ctx.restore();
+ }
+ baseHero(x+dx,y+dy);
+ ctx.save();ctx.strokeStyle='#8a8052';ctx.lineWidth=3;
+ ctx.beginPath();ctx.moveTo(x+dx-21,y+dy-83);ctx.lineTo(x+dx-9,y+dy-92);ctx.lineTo(x+dx+8,y+dy-88);ctx.stroke();
+ ctx.fillStyle='#fff09a';ctx.fillRect(x+dx+12,y+dy-66,7,3);
+ if(active&&['slash','high','low','back'].includes(lab.pose)){
+  ctx.strokeStyle='#fff1ba';ctx.lineWidth=7;ctx.lineCap='round';
+  ctx.beginPath();ctx.arc(x+dx+39,y+dy-24,lab.pose==='low'?60:76,-1.2,lab.pose==='low'?.45:.65);ctx.stroke();
+  ctx.strokeStyle='#fffcdf';ctx.lineWidth=2;ctx.stroke();
+ }
+ ctx.restore();
+};
+const baseDummy=drawDummy;
+drawDummy=function(x,y){
+ baseDummy(x,y);ctx.save();ctx.strokeStyle='#584038';ctx.lineWidth=3;
+ ctx.beginPath();ctx.moveTo(x-22,y-88);ctx.lineTo(x-7,y-85);ctx.moveTo(x+7,y-85);ctx.lineTo(x+22,y-88);ctx.stroke();
+ ctx.fillStyle='#9c5344';ctx.fillRect(x-10,y-43,20,6);ctx.restore();
+};
+const baseRoom=drawRoom;
+drawRoom=function(){
+ baseRoom();ctx.save();ctx.strokeStyle='#95664a';ctx.globalAlpha=.23;ctx.lineWidth=2;
+ for(let i=0;i<14;i++){const x=170+(i*73)%540,y=64+(i*57)%275;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+14,y);ctx.lineTo(x+17,y-4);ctx.stroke();}
+ ctx.strokeStyle='#694b3d';ctx.globalAlpha=.42;
+ for(let i=0;i<7;i++){ctx.beginPath();ctx.moveTo(720,0);ctx.lineTo(720-i*12,75);ctx.moveTo(720,0);ctx.lineTo(790,30+i*9);ctx.stroke();}
+ for(let j=1;j<=4;j++){ctx.beginPath();ctx.arc(720,0,15+j*15,0,Math.PI*.8);ctx.stroke();}
+ ctx.restore();
+};
+const baseDraw=draw;
+draw=function(){
+ baseDraw();ctx.save();
+ for(const p of lab.sparks){ctx.globalAlpha=Math.max(0,p.life/p.max);ctx.fillStyle=p.color;ctx.fillRect(p.x-3,p.y-3,6,6);}
+ for(const s of lab.slashes){
+  ctx.globalAlpha=Math.max(0,s.life/s.max)*.9;ctx.strokeStyle='#fff1b7';ctx.lineWidth=11;ctx.lineCap='round';
+  ctx.beginPath();ctx.arc(s.x,s.y,80,-.9,.85);ctx.stroke();ctx.strokeStyle='#ffffff';ctx.lineWidth=3;ctx.stroke();
+ }
+ if(lab.flash>0){ctx.globalAlpha=lab.flash*1.15;ctx.fillStyle='#ff3f34';ctx.fillRect(0,0,900,506);}
+ ctx.restore();
+};
+ENEMIES.push({name:'Veterano de hierro',icon:'🛡️',hp:275,atk:24});
+ENEMIES.push({name:'Señor de la arena',icon:'🐉',hp:380,atk:30});
+const choose=document.createElement('div');choose.className='souls-arena-select';
+choose.innerHTML='<strong>Rivales por arena:</strong><button class="btn primary" type="button" data-waves="3">3 rivales</button><button class="btn" type="button" data-waves="5">5 rivales</button><span class="muted">El último es el jefe.</span>';
+$('arena').querySelector('h2').insertAdjacentElement('afterend',choose);
+choose.querySelectorAll('[data-waves]').forEach(function(b){
+ b.onclick=function(){
+  lab.arenaWaves=Number(b.dataset.waves);
+  choose.querySelectorAll('[data-waves]').forEach(function(el){el.classList.toggle('primary',el===b);});
+  A=null;$('log').innerHTML='';renderArena();
+ };
+});
+$('arena').querySelector('aside .panel').insertAdjacentHTML('beforeend','<p>4. 🛡️ Veterano de hierro</p><p>5. 🐉 Señor de la arena</p>');
+const baseDeal=deal;
+deal=function(d){
+ if(lab.arenaWaves===3){baseDeal(d);return;}
+ if(!A||A.over)return;
+ animateFighter('heroFigure','swing');animateFighter('enemyFigure','struck');
+ A.enemy=Math.max(0,A.enemy-d);combatLog('🗡️ Infligís '+Math.round(d)+' de daño.');
+ if(A.enemy<=0){
+  A.wave++;
+  if(A.wave>=lab.arenaWaves){
+   A.over=true;const gold=180+S.wins*35;S.wins++;S.coins+=gold;
+   combatLog('🏆 ¡Victoria! Derrotaste a los cinco. +'+gold+' monedas.');save();renderStats();
+  }else{A.hero=Math.min(maxHP(),A.hero+Math.round(maxHP()*.12));nextEnemy();}
+ }
+ renderArena();
+};
+const baseRenderArena=renderArena;
+renderArena=function(){
+ baseRenderArena();
+ if(A){
+  $('enemyName').textContent=A.over&&A.wave>=lab.arenaWaves?'¡Campeón!':ENEMIES[Math.min(A.wave,ENEMIES.length-1)].name;
+  $('arenaStatus').textContent=A.over?'Desafío terminado. Podés iniciar otro.':'Rival '+(A.wave+1)+' de '+lab.arenaWaves+' · Ataques automáticos activos';
+ }
+};
+const baseNext=nextEnemy;
+nextEnemy=function(){baseNext();if(A.wave===lab.arenaWaves-1)combatLog('👑 ¡JEFE DE ARENA!');};
+const baseShop=renderShop;
+renderShop=function(){
+ baseShop();let holder=$('soulsStations');
+ if(!holder){holder=document.createElement('div');holder.id='soulsStations';$('shopList').insertAdjacentElement('afterend',holder);}
+ holder.innerHTML='<h2 style="margin-top:22px">🏋️ Estaciones de entrenamiento</h2><p class="muted">Cada mejora suma un nivel adicional del atributo al completar una sesión.</p><div class="shopgrid">'+
+ Object.keys(MODES).map(function(k){
+  const lv=S.stations[k],cost=45*(lv+1)*(lv+1);
+  return '<div class="shopitem"><b>'+MODES[k].icon+' '+MODES[k].name+' · Estación Nv '+lv+'</b><p>Bonificación: +'+lv+' niveles por sesión</p><button class="btn" data-station="'+k+'" '+(S.coins<cost?'disabled':'')+'>Mejorar · '+cost+' 🪙</button></div>';
+ }).join('')+'</div>';
+ holder.querySelectorAll('[data-station]').forEach(function(b){
+  b.onclick=function(){
+   const k=b.dataset.station,lv=S.stations[k],cost=45*(lv+1)*(lv+1);
+   if(S.coins<cost)return;S.coins-=cost;S.stations[k]++;save();renderStats();
+  };
+ });
+};
+renderStats();
+window.ArgentumSoulsBridge={schema:'souls-lab-prototype-v1',exportProgress:function(){
+ return JSON.parse(JSON.stringify({stats:S.stats,gear:S.gear,stations:S.stations,coins:S.coins,arenaWins:S.wins}));
+}};
+})();
+</script></body></html>
