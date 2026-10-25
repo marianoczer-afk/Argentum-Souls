@@ -74,3 +74,11 @@ Intervalo registrado de implementación, pruebas y documentación: **04:21:27–
 - `gh pr view 1` pudo leer la API en este turno y confirmó PR abierto, base main y cabecera `dev/continuous-training`; el bloqueo de red anotado en la entrega anterior es histórico.
 
 Informes de esta ejecución: `artifacts/correction-results.json`, `artifacts/browser-results.json`, `artifacts/animation-mutation.json`. No se alteraron los registros históricos previos. Publicación de rama y actualización del PR se registran a continuación cuando se completen.
+
+### Publicación de la corrección
+
+- Commit de código y regresiones: `2122875` (`fix: protect cross-tab saves and verify rendered training motion`), enviado a la misma rama `dev/continuous-training`.
+- PR #1 confirmado abierto, base `main` y cabecera `dev/continuous-training`. Se actualizó su descripción con los cuatro arreglos, 21 pruebas unitarias, 27 comprobaciones de Chromium, mutación y límites de operación.
+- `gh pr edit` falló por la consulta obsoleta de Projects (classic) de esa versión del CLI. Se usó el endpoint REST `PATCH /repos/marianoczer-afk/Argentum-Souls/pulls/1`, que confirmó la actualización del mismo PR; no fue necesario crear otro ni pedir credenciales.
+- Main remoto se comprobó en `438977b5bd12f3876c9e4ca4fecb3449a02b42ab`, sin cambios. No se fusionó el PR ni se publicó una versión de Pages.
+- Duración individual de commit, push y edición del PR: **NO MEDIDO**.
