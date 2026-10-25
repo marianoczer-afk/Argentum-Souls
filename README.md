@@ -2,7 +2,7 @@
 
 🎮 **[JUGAR ARGENTUM SOULS ONLINE](https://marianoczer-afk.github.io/Argentum-Souls/)** · [Ver código en GitHub](https://github.com/marianoczer-afk/Argentum-Souls)
 
-> **Versión jugable:** Entrega A.1 — entrenamiento mejorado. Los cambios de cada entrega se publican en la misma página; no hace falta descargar archivos ni ZIP.
+> **Versión de esta entrega:** A.2 — ritmo, controles y animaciones de entrenamiento. La página online se actualiza después de fusionar y publicar. Los cambios de cada entrega se publican en la misma página; no hace falta descargar archivos ni ZIP.
 
 
 Juego web independiente de entrenamiento y arena inspirado en el ciclo de juego de *Swords and Souls*, con dibujo y sonidos propios. Entrega A: HUD compacto y sala ampliada, cinco entrenamientos de inicio automático y dificultad por combo, controles de teclado/mouse/táctiles y progreso guardado por acierto.
@@ -27,7 +27,7 @@ Editar en `src/` y ejecutar `npm run build`. El build genera el HTML raíz con m
 - **Defensa:** mover mouse o dedo para orientar el escudo al impacto.
 - **Precisión:** apuntar y hacer clic/toque; acertar al centro da perfecto.
 - **Esquiva:** seguir la dirección indicada ante el ataque del muñeco.
-- **Crítico:** calavera = no pulsar; exclamación = primer toque; rayo en el aire = segundo toque. Espacio, Enter o clic.
+- **Crítico:** exclamación roja = esperar; dorada = saltar; estrella aérea = segundo toque. Espacio, Enter, clic o toque.
 
 Las disciplinas arrancan al seleccionarlas, sin botón Empezar. No hay final por tiempo, combo ni misión. El ritmo aumenta según el combo con límites y vuelve suavemente al inicio tras fallar; golpear al aire en Fuerza no penaliza. Los errores rompen el combo. Cada acierto da experiencia y los combos la multiplican. La misión de sesión entrega +15 monedas una vez, sin cortar el entrenamiento. Las estaciones suman XP por acierto. «Salir y guardar» conserva lo ganado; también se guarda durante los aciertos. Perder foco o cambiar a arena/tienda pausa el entrenamiento; al volver desde arena/tienda se reanuda, mientras que una pausa por foco, configuración o manual exige «Continuar».
 
@@ -83,3 +83,7 @@ La versión/publicación automática y la configuración de Pages necesaria se d
 Pulido de los cinco entrenamientos: ráfagas y dificultad por combo, premios persistentes de hitos, misión con XP, anticipación de Esquiva, lectura de amagues de Crítico y panel compacto de atributos. [Cambios y validación](docs/DELIVERY_A1.md) · [Parámetros y simulaciones](docs/BALANCE_A1.md).
 
 `npm run test:balance` reproduce los 35 escenarios de balance. El build de publicación está en `dist/`; abrir mediante HTTP, no `file://`. Las arenas y los personajes siguen pendientes para B/C.
+
+## Entrega A.2
+
+Ritmo variable, espada exclusiva y estrella opcional, escudo con colisión compartida con el dibujo, blancos con perspectiva, tres evasiones y controles sobre la escena en móvil. [Cambios, capturas y límites](docs/DELIVERY_A2.md) · [Mediciones de balance](docs/BALANCE_A2.md). No se generan ZIP: la publicación mantiene el enlace de juego de arriba.

@@ -41,11 +41,11 @@ module.exports=async(browser,url,check)=>{
   for(const m of ['str','def','acc','dodge','crit'])for(const combo of [0,10,25,50,100,150,200]){
    await mode(m);await preset(combo);
    const state=await until(s=>m==='crit'?s.critical.stage!=='wait':s.objects.length>0),o=state.objects[0];
-   if(m==='str')assert.ok(Math.abs(o.vx)<=480);
+   if(m==='str')assert.ok(Math.abs(o.vx)<=600.001);
    if(m==='def')assert.ok(o.originX<0||o.originX>1200||o.originY<0||o.originY>720);
-   if(m==='acc'){assert.ok(o.r>=34);if(combo>=10)assert.ok(Math.abs(o.vx)>0);}
-   if(m==='dodge')assert.ok(o.windup>=1.14&&o.windup<=1.28);
-   if(m==='crit')assert.ok(state.critical.limit>=.6&&state.critical.limit<=.82);
+   if(m==='acc'){assert.ok(o.r>=39);if(combo>=10)assert.ok(Math.abs(o.vx)>0);}
+   if(m==='dodge')assert.ok(o.windup>=.72&&o.windup<=1.16);
+   if(m==='crit')assert.ok(state.critical.limit>=.5&&state.critical.limit<=.83);
    samples.push({m,combo,d:state.difficulty,interval:state.spawn,speed:Math.abs(o?.vx??0),motion:Math.abs(o?.vx??0),windup:o?.windup});
   }
   assert.ok(samples.find(r=>r.m==='str'&&r.combo===200).speed>samples.find(r=>r.m==='str'&&r.combo===0).speed+100);
@@ -55,12 +55,13 @@ module.exports=async(browser,url,check)=>{
   await mode('str');await preset(200);
   const state=await until(s=>s.objects.some(o=>o.burst)),pair=state.objects.filter(o=>o.type==='apple');assert.ok(pair.length>=2);assert.ok(pair.some(o=>o.burst));
   assert.ok(pair.every(o=>o.x>700&&o.y>200&&o.y<650));await screenshot('strength-burst');
-  const ids=new Set(pair.map(o=>o.id));let rewards=0;
+  await p.evaluate(()=>{const s=window.__training.session;s.spawn=999;s.pairPending=0;s.burstRemaining=0;s.starTimer=999;});
+  const ids=new Set(pair.map(o=>o.id));const initialHits=(await s()).hits;let rewards=0;
   for(let i=0;i<400&&ids.size;i++){
-   const now=await s();for(const o of now.objects)if(ids.has(o.id)&&Math.abs(o.x-350)<25){assert.ok(await appleVisible(o),'actual apple pixels must reach the hero before input');const hits=(await s()).hits;await p.keyboard.press(['ArrowUp','ArrowRight','ArrowDown'][o.lane]);const latest=await s();rewards+=latest.hits-hits;for(const id of [...ids])if(!latest.objects.some(o=>o.id===id))ids.delete(id);}
+   const now=await s();for(const id of [...ids])if(!now.objects.some(o=>o.id===id))ids.delete(id);for(const o of now.objects)if(ids.has(o.id)&&Math.abs(o.x-350)<25){assert.ok(await appleVisible(o),'actual apple pixels must reach the hero before input');const hits=(await s()).hits;await p.keyboard.press(['ArrowUp','ArrowRight','ArrowDown'][o.lane]);await p.clock.runFor(10);const latest=await s();rewards+=latest.hits-hits;for(const id of [...ids])if(!latest.objects.some(o=>o.id===id))ids.delete(id);}
    await p.clock.runFor(10);
   }
-  assert.equal(ids.size,0);assert.equal(rewards,pair.length);
+  assert.equal(ids.size,0);assert.equal((await s()).hits-initialHits,pair.length);
   await mode('str');const star=(await until(s=>s.objects.some(o=>o.type==='star'))).objects.find(o=>o.type==='star');assert.ok(star.x>=220&&star.x<270&&star.y>425&&star.y<450);
   const before=(await s()).hits;await p.keyboard.press('ArrowLeft');assert.equal((await s()).hits,before+1);await p.keyboard.press('ArrowLeft');assert.equal((await s()).hits,before+1);
  });
@@ -84,12 +85,12 @@ module.exports=async(browser,url,check)=>{
   const before=await progress();await click(1190,710,true);assert.equal((await s()).combo,0);assert.deepEqual(await progress(),before);
  });
  await check('A.1: straight dodge cue precedes preparation; early Good, Perfect and clear Fail grade once on execution',async()=>{
-  for(const [fraction,correct,outcome] of [[.08,true,'miss'],[.24,true,'good'],[.69,true,'perfect'],[.69,false,'miss']]){
+  for(const [fraction,correct,outcome] of [[.08,true,'miss'],[.24,true,'good'],[1.03,true,'perfect'],[1.03,false,'miss']]){
    await mode('dodge');const cue=(await until(s=>s.objects.length)).objects[0];await p.clock.runFor(Math.max(0,Math.round((cue.windup*fraction-cue.age)*1000)));
-   const q=(await s()).objects[0],needed={low:'ArrowUp',high:'ArrowDown',left:'ArrowRight',right:'ArrowLeft'}[q.kind];
+   const q=(await s()).objects[0],needed={low:'ArrowUp',high:'ArrowDown',mid:'ArrowLeft'}[q.kind];
    if(fraction===.08){await screenshot('dodge-direction');}
    await p.keyboard.press(correct?needed:needed==='ArrowDown'?'ArrowUp':'ArrowDown');assert.equal((await s()).hits,0);assert.ok((await s()).pose);
-   await p.clock.runFor(Math.ceil((q.windup-q.age+.025)*1000));const resolved=await s();assert.equal(resolved.objects[0].outcome,outcome);assert.equal(resolved.hits,outcome==='miss'?0:1);assert.equal(resolved.misses,outcome==='miss'?1:0);
+   await p.clock.runFor(Math.ceil((q.windup-q.age+.14)*1000));const resolved=await s();assert.equal(resolved.objects[0].outcome,outcome);assert.equal(resolved.hits,outcome==='miss'?0:1);assert.equal(resolved.misses,outcome==='miss'?1:0);
    const before=await progress();await p.keyboard.press(needed);assert.deepEqual(await progress(),before);if(outcome==='perfect')await screenshot('dodge-strike');
   }
  });

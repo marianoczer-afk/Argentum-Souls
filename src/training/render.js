@@ -1,15 +1,18 @@
+import {SHIELD,DODGE,shieldGeometry,dodgeMotion,dodgePerfect} from './geometry.js';
+import {touchHints} from './controls.js';
 import {tuning} from './balance.js';
 import { LANES, dodgePhase, dodgeTrajectory, clamp } from './model.js';
 const TAU = Math.PI * 2;
 export function heroTransform(pose) {
   if (!pose) return { x: 0, y: 0, scaleY: 1, sword: -.5 };
-  const p = clamp(pose.age / pose.duration, 0, 1), wave = Math.sin(p * Math.PI);
+  const p=clamp(pose.age/pose.duration,0,1),wave=pose.evade?Math.min(1,p/.12)*Math.min(1,(1-p)/.25):Math.sin(p*Math.PI);
   const t = { x: 0, y: 0, scaleY: 1, sword: -.5 };
   if (['jump', 'high'].includes(pose.kind)) t.y = -wave * (pose.kind === 'jump' ? 95 : 45);
   if (['low', 'crouch'].includes(pose.kind)) { t.scaleY = 1 - wave * .42; t.y = wave * 12; }
   if (pose.kind === 'dash') t.x = wave * 85 * pose.direction;
   if (pose.kind === 'back') t.x = -wave * 100;
   if (['slash', 'high', 'low', 'critical'].includes(pose.kind)) { t.sword = -.5 + p * 2.5; t.x += wave * 22; }
+  if(pose.kind==='block'){t.x=-Math.cos(pose.direction)*wave*5;t.y=-Math.sin(pose.direction)*wave*5;}
   if (pose.kind === 'hurt') t.x = -wave * 17;
   if (pose.kind === 'critical') t.x += wave * 30;
   return t;
@@ -56,30 +59,29 @@ export class TrainingRenderer {
     this.round(-4, -66, 8, 67, 3, '#e9dfbd'); this.round(-14, -5, 28, 6, 2, '#b78d4e'); this.round(-4, 0, 8, 22, 2, '#675443'); c.restore();
     c.restore();
   }
-  dummy(x, y, s) {
+  dummy(x, y, s, motion=null) {
     const c = this.ctx;
-    c.save(); c.translate(x, y);
+    c.save(); c.translate(x+(motion?.step??0),y);
     const cue = s?.objects.find(o => o.type === 'cue');
     c.rotate(!cue&&s?.dummy>0?-.12*Math.sin(s.dummy*20):0);
-    c.strokeStyle = '#664939'; c.lineWidth = 13; c.lineCap = 'round'; c.beginPath(); c.moveTo(0, -85); c.lineTo(0, 90); c.moveTo(-48, -12); c.lineTo(48, -12); c.stroke();
-    this.round(-27, -44, 54, 78, 13, '#d2c4a1'); this.circle(0, -78, 34, '#d2c4a1', '#66543e');
+    c.strokeStyle = '#664939'; c.lineWidth = 13; c.lineCap = 'round'; c.beginPath(); c.moveTo(0,-85);c.lineTo(0,45);
+    if(motion){c.moveTo(0,25);c.lineTo(24,75);c.moveTo(0,25);c.lineTo(-22-(motion.kick??0),45);}
+    else {c.lineTo(0,90);}
+    c.moveTo(0,-20);c.lineTo(48,-12);c.moveTo(0,-20);c.lineTo(-50-(motion?.arm??0),s?.throwCue?(s.throwCue.lane===2?20:-30):-12);c.stroke();
+    this.round(-27,-44,54,78,13,'#d2c4a1');c.save();c.translate(motion?.headX??0,motion?.headY??0); this.circle(0, -78, 34, '#d2c4a1', '#66543e');
     this.circle(-12, -79, 4, '#526b67'); this.circle(12, -79, 4, '#526b67');
     c.strokeStyle = '#8e614c'; c.lineWidth = 3; c.beginPath(); c.moveTo(-12, -63); c.lineTo(13, -59); c.stroke();
     this.round(-38, -117, 76, 15, 3, '#37333c'); this.round(-25, -151, 50, 39, 4, '#44404b');
-    this.round(-25, -122, 50, 6, 2, '#a98354');
+    this.round(-25,-122,50,6,2,'#a98354');c.restore();
     c.restore();
   }
   dodgeAttack(cue){
-    const c=this.ctx,phase=dodgePhase(cue);
-    const path=dodgeTrajectory(cue.kind);
-    const {x1,y1,x2,y2}=path;
-    c.save();c.setLineDash([12,9]);c.strokeStyle=phase==='perfect'?'#fff2a5':'#ffe2ae99';c.lineWidth=3;c.beginPath();c.moveTo(x1,y1);c.lineTo(x2,y2);c.stroke();c.setLineDash([]);
-    const progress=clamp((cue.age-cue.windup+.04)/.14,0,1),tip=x1+(x2-x1)*(.12+.88*progress);
-    c.strokeStyle='#49352b';c.lineWidth=13;c.beginPath();c.moveTo(x1,y1);c.lineTo(tip,y1);c.stroke();
-    c.strokeStyle='#f0dbab';c.lineWidth=7;c.stroke();
-    this.label(x2>x1?'→':'←',(x1+x2)/2,y1-16,28,phase==='perfect'?'#fff7bd':'#fff0d4');
-    if(phase==='perfect'){this.circle(x1,y1,30,null,'#fff8ba');this.label('✦',x1,y1-45,36,'#fff3a2');}
-    c.restore();
+    const m=dodgeMotion(cue);
+    this.dummy(DODGE.dummyX,DODGE.dummyY,{objects:[cue]},m);
+    if(m.perfect){
+      this.circle(DODGE.dummyX-95,390,41,'#ffffff28','#ffffff');
+      this.label('✦',DODGE.dummyX-95,400,30,'#fff');
+    }
   }
   apple(o) {
     const c = this.ctx; c.save(); c.translate(o.x, o.y); c.rotate(Math.sin(o.age * 6) * .18);
@@ -120,6 +122,11 @@ export class TrainingRenderer {
       if (e.kind === 'hit') {
         for (let i = 0; i < 9; i++) { const a = i / 9 * TAU; this.circle(e.x + Math.cos(a) * p * 70, e.y + Math.sin(a) * p * 50 + p * p * 30, 4 * (1 - p) + 1, e.perfect ? '#fff1a1' : '#f1c086'); }
         this.circle(e.x, e.y, p * 45, null, '#ffedaa');
+      } else if(e.kind==='chain'){
+        this.circle(e.x,e.y,35+p*75,null,'#fff4b1');
+        for(let i=0;i<5;i++){const a=i*TAU/5;this.circle(e.x+Math.cos(a)*(25+70*p),e.y+Math.sin(a)*(25+70*p),3,'#fff5bc');}
+      } else if(e.kind==='block'){
+        this.circle(e.x,e.y,8+p*26,null,'#fff4c2');
       } else if (e.kind === 'slash') {
         c.strokeStyle = '#fff4c6'; c.lineWidth = 12 * (1 - p) + 1; c.lineCap = 'round'; c.beginPath(); c.arc(e.x, e.y, 60 + p * 30, -1.5 + p, .6 + p); c.stroke();
       } else if (e.kind === 'label') this.label(e.text, e.x, e.y - p * 30, 20, e.color);
@@ -143,17 +150,16 @@ export class TrainingRenderer {
 
     } else if (mode === 'def') {
       this.hero(600, 420, s?.pose, false);
-      const a = Math.atan2(engine.pointer.y - 390, engine.pointer.x - 600);
-      this.circle(600, 390, 88, null, '#e1c68b75');
-      c.save(); c.translate(600, 390); c.rotate(a); this.round(64, -31, 20, 62, 7, '#b9c1b9'); this.round(69, -23, 9, 46, 4, '#386277'); c.restore();
-      objects.forEach(o=>{const angle=Math.atan2(o.vy,o.vx),c=this.ctx;c.save();c.strokeStyle='#ffe3aa80';c.lineWidth=3;c.beginPath();c.moveTo(o.x-Math.cos(angle)*65,o.y-Math.sin(angle)*65);c.lineTo(o.x,o.y);c.stroke();c.restore();this.apple(o);});
+      const shield=shieldGeometry(engine.pointer);
+      this.circle(SHIELD.x,SHIELD.y,SHIELD.radius,null,'#e1c68b65');
+      c.save();c.translate(shield.x,shield.y);c.rotate(shield.angle);
+      this.round(-SHIELD.depth/2,-SHIELD.span/2,SHIELD.depth,SHIELD.span,SHIELD.rounding,s?.pose?.kind==='block'?'#fff2b0':'#b9c1b9');this.round(-4,-23,9,46,4,'#386277');c.restore();
+      objects.forEach(o=>this.apple(o));
     } else if (mode === 'acc') { objects.forEach(o => this.target(o)); this.bow(engine.pointer, s?.pose); }
     else if (mode === 'dodge') {
       const cue=objects[0];
-      this.hero(330,490,s?.pose);this.dummy(cue?.kind==='left'?100:1000,480,s);if(cue)this.dodgeAttack(cue);
-      if(cue){
-        this.round(330,165,540,9,4,'#76513d');this.round(330,165,540*(1-clamp(cue.age/cue.windup,0,1)),9,4,'#f8dc9f');
-      }
+      this.hero(DODGE.heroX,DODGE.heroY,s?.pose);
+      if(cue)this.dodgeAttack(cue);else this.dummy(DODGE.dummyX,DODGE.dummyY,s);
     } else {
       const stage = s?.critical.stage ?? 'wait', clock = s?.critical.clock ?? 0;
       let x = 330, y = 490, pose = s?.pose;
@@ -166,16 +172,15 @@ export class TrainingRenderer {
         pose = s.pose ? { ...s.pose, kind: 'slash' } : null;
       }
       this.hero(x, y, pose); this.dummy(900, 480, s);
-      if (['fake', 'ready', 'air'].includes(stage)) this.label({ fake: '☠', ready: '❗', air: '⚡' }[stage], stage === 'air' ? 760 : 990, 295, 45, stage === 'fake' ? '#ffa29b' : '#fff1a1');
-      if(['ready','air'].includes(stage)){
+      if(['fake','ready','air'].includes(stage)){
         const p=tuning('crit',engine.difficulty),perfect=stage==='air'&&clock>=p.perfectStart&&clock<=p.perfectEnd;
-        const rx=stage==='air'?760:990,ry=270;
-        this.circle(rx,ry,52,'#29303be8',perfect?'#fff5a0':'#b89e6e');
-        c.save();c.lineWidth=perfect?9:4;c.strokeStyle=perfect?'#fff5a0':'#f1bf70';c.beginPath();c.arc(rx,ry,47,-Math.PI/2,-Math.PI/2+TAU*clamp(clock/(s.critical.limit??(stage==='air'?p.air:p.ready)),0,1));c.stroke();c.restore();
-        this.label(perfect?'★':'✦',rx,ry+17,perfect?52:40,perfect?'#fff9bc':'#d8c59b');
-        if(perfect)this.label('PERFECTO',rx,ry-65,20,'#fff1a1');
+        const rx=stage==='air'?760:990,ry=270,fake=stage==='fake',radius=40;
+        this.circle(rx,ry,radius,fake?'#66322f':'#29303bf2',fake?'#f4a39a':perfect?'#fff5a0':'#e0bd77');
+        c.save();c.lineWidth=perfect?6:3;c.strokeStyle=fake?'#ef827b':perfect?'#fff5a0':'#f1bf70';c.beginPath();c.arc(rx,ry,radius-4,-Math.PI/2,-Math.PI/2+TAU*clamp(clock/(s.critical.limit??(stage==='air'?p.air:stage==='fake'?p.fake:p.ready)),0,1));c.stroke();c.restore();
+        this.label(stage==='air'?(perfect?'★':'✦'):'!',rx,ry+13,perfect?39:35,fake?'#ffd0c9':'#fff1b0');
       }
     }
+    if(engine.showTouchHints){for(const h of touchHints(mode)){this.circle(h.x,h.y,52,'#24384188','#f5dfa999');this.label(h.label,h.x,h.y+8,20,'#fff2ca');}}
     if (s) this.effects(s.effects);
     if (s?.paused) { c.fillStyle = '#17232cbf'; c.fillRect(0, 0, 1200, 720); this.label('EN PAUSA · TU PROGRESO ESTÁ CONSERVADO', 600, 350, 24); }
   }

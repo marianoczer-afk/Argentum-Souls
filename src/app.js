@@ -15,12 +15,15 @@ let audio = null, sound = true;
 const soundButton = document.createElement('button'); soundButton.className = 'btn'; soundButton.textContent = '🔊 Sonido: sí';
 root.querySelector('#settingsSound').append(soundButton);
 soundButton.onclick = () => { sound = !sound; soundButton.textContent = sound ? '🔊 Sonido: sí' : '🔇 Sonido: no'; soundButton.blur(); };
-function feedback(kind) {
+function feedback(kind,detail={}) {
   if (!sound) return;
   try {
     audio ||= new AudioContext(); if (audio.state === 'suspended') void audio.resume();
     const oscillator = audio.createOscillator(), gain = audio.createGain();
-    oscillator.frequency.value = kind === 'miss' ? 170 : kind === 'perfect' ? 740 : 510;
+    const run=Math.min(4,detail.run??0),sword=detail.mode==='str',block=detail.mode==='def';
+    oscillator.type=sword?'sawtooth':block?'triangle':'sine';
+    oscillator.frequency.setValueAtTime(kind==='miss'?170:block?1050+run*120:sword?1000+run*160:kind==='perfect'?740:510,audio.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(kind==='miss'?90:block?600+run*80:sword?220+run*70:500,audio.currentTime+.065);
     gain.gain.setValueAtTime(.025, audio.currentTime); gain.gain.exponentialRampToValueAtTime(.001, audio.currentTime + .08);
     oscillator.connect(gain); gain.connect(audio.destination); oscillator.start(); oscillator.stop(audio.currentTime + .09);
   } catch { /* Sound is optional; training remains playable. */ }

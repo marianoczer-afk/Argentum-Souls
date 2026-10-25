@@ -25,13 +25,13 @@ test('combo accelerates speed; elapsed session time does not affect difficulty',
   assert.ok(Math.abs(-a.session.objects[1].vx-earlySpeed)<1e-8);
   a.session.objects=[];a.session.starTimer=999;a.session.combo=80; a.session.spawn=999; advance(a,4); a.spawnObject();
   assert.ok(-a.session.objects.at(-1).vx > earlySpeed);
-  assert.ok(-a.session.objects.at(-1).vx <= 480);
+  assert.ok(-a.session.objects.at(-1).vx <= 600);
 });
 test('one sword sweep cuts multiple nearby apples and chains without cooldown', () => {
   const rewards = [], engine = new Training({ reward: (_, r) => rewards.push(r) }); engine.start('str');
   engine.session.objects = [apple(1, 0, 290), apple(2, 0, 335), apple(3, 1, 290)];
-  engine.input('ArrowUp'); assert.equal(engine.session.hits, 2);
-  engine.input('ArrowRight'); assert.equal(engine.session.hits, 3);
+  engine.input('ArrowUp');advance(engine,1/120);assert.equal(engine.session.hits,2);
+  engine.input('ArrowRight');advance(engine,.06);assert.equal(engine.session.hits,3);
   assert.equal(engine.session.combo, 3); assert.equal(rewards.length, 3);
   assert.equal(engine.session.objects.length, 0);
 });
@@ -63,10 +63,10 @@ test('precision center hit gives perfect, off-target shot breaks combo', () => {
   engine.click(850, 440); assert.equal(engine.session.combo, 0);
 });
 test('every dodge cue maps to a different directional movement', () => {
-  for (const [kind, key, pose] of [['low', 'ArrowUp', 'jump'], ['high', 'ArrowDown', 'crouch'], ['left', 'ArrowRight', 'dash'], ['right', 'ArrowLeft', 'dash']]) {
+  for (const [kind, key, pose] of [['low','ArrowUp','jump'],['high','ArrowDown','crouch'],['mid','ArrowLeft','dash']]) {
     const engine = new Training(); engine.start('dodge');
-    engine.session.objects = [{ id: 1, type: 'cue', kind, age: .65, windup: 1 }];
-    engine.input(key);assert.equal(engine.session.pose.kind,pose);assert.equal(engine.session.hits,0);advance(engine,.36);assert.equal(engine.session.hits,1);
+    engine.session.objects = [{ id: 1, type: 'cue', kind,age:1.02,windup:1 }];
+    engine.input(key);assert.equal(engine.session.pose.kind,pose);assert.equal(engine.session.hits,0);advance(engine,.11);assert.equal(engine.session.hits,1);
   }
 });
 test('critical fake must be ignored and real cue requires two separated inputs', () => {
@@ -90,7 +90,7 @@ test('early second critical input or a missed cue resets combo', () => {
 });
 test('pausing freezes simulation, events and effects, stopping never removes earned XP', () => {
   const engine = new Training(); engine.start('str');
-  engine.session.objects = [apple(1, 1, 350)]; engine.input('d');
+  engine.session.objects = [apple(1, 1, 350)]; engine.input('d');advance(engine,1/120);
   const snapshot = structuredClone(engine.session); engine.pause(true); advance(engine, 60); engine.input('a');
   assert.equal(engine.session.time, snapshot.time); assert.equal(engine.session.hits, 1);
   engine.stop(); assert.equal(engine.session.xp, snapshot.xp); assert.equal(engine.session.running, false);

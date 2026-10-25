@@ -155,7 +155,7 @@ module.exports = async function regressions(browser, url, check) {
     const ctx = await context();
     try {
       const p = await page(ctx); await start(p,'crit',true);
-      await until(p,s=>s.critical.stage==='ready'); await p.locator('.souls-touch [data-key=" "]').tap();
+      await until(p,s=>s.critical.stage==='ready'); await p.touchscreen.tap(...Object.values(await screenPoint(p,600,260)));
       assert.equal((await session(p)).critical.stage,'jump'); await p.clock.runFor(430);
       assert.equal((await session(p)).critical.stage,'air');const priorHits=(await session(p)).hits; const q=await screenPoint(p,600,230);
       await p.touchscreen.tap(q.x,q.y); assert.equal((await session(p)).hits,priorHits+1);assert.ok((await session(p)).combo>=1);
@@ -171,9 +171,9 @@ module.exports = async function regressions(browser, url, check) {
     try {
       const p=await page(ctx);await start(p,'dodge',true);
       const s=await until(p,s=>s.objects[0]?.age>s.objects[0]?.windup*.65);
-      const key={low:'ArrowUp',high:'ArrowDown',left:'ArrowRight',right:'ArrowLeft'}[s.objects[0].kind];
-      await p.locator(`.souls-touch [data-key="${key}"]`).tap();assert.equal((await session(p)).hits,0);
-      await p.clock.runFor(Math.ceil((s.objects[0].windup-s.objects[0].age+.02)*1000));assert.equal((await session(p)).hits,1);
+      const key={low:'ArrowUp',high:'ArrowDown',mid:'ArrowLeft'}[s.objects[0].kind];
+      const z=await screenPoint(p,...(key==='ArrowUp'?[550,320]:key==='ArrowDown'?[550,620]:[370,465]));await p.touchscreen.tap(z.x,z.y);assert.equal((await session(p)).hits,0);
+      await p.clock.runFor(Math.ceil((s.objects[0].windup-s.objects[0].age+.16)*1000));assert.equal((await session(p)).hits,1);
       assert.ok((await progress(p)).xp.dodge>0);await p.locator('#stop').tap();assert.deepEqual(p.auditErrors,[]);
     }finally{await ctx.close();}
   });
