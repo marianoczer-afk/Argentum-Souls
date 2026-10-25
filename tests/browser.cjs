@@ -49,11 +49,11 @@ async function check(name, fn) {
     page.on('pageerror', e => errors.push(e.message));
     page.on('response', r => { if (!r.ok() && !r.url().endsWith('favicon.ico')) failed.push(`${r.status()} ${r.url()}`); });
     // Test-only observation: capture the real engine, never replace outcomes or game input.
-    await page.route('**/training/model.js', async route => {
+    await page.route('**/training/model.js*', async route => {
       const response = await route.fetch();
       await route.fulfill({ response, body: await response.text() + '\nconst originalStart = Training.prototype.start; Training.prototype.start = function(...args) { const result = originalStart.apply(this,args); window.__training = this; return result; };\n' });
     });
-    await page.route('**/training/render.js', async route => {
+    await page.route('**/training/render.js*', async route => {
       const response = await route.fetch();
       await route.fulfill({ response, body: await response.text() + `
 const actualHero = TrainingRenderer.prototype.hero;
@@ -179,6 +179,7 @@ TrainingRenderer.prototype.hero = function(x,y,...args) {
     assert.deepEqual(errors, [], 'no uncaught browser errors'); assert.deepEqual(failed, [], 'all application resources load');
     await context.close();
   }
+  await require('./browser-cache.cjs')(browser, url, check);
   await require('./browser-regressions.cjs')(browser, url, check);
   await require('./browser-delivery-a.cjs')(browser, url, check);
   await check('GitHub Pages: application and modules load under /Argentum-Souls/', async () => {
