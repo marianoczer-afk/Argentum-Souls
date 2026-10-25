@@ -67,9 +67,9 @@ module.exports=async function deliveryA(browser,url,check){
   await p.locator('[data-mode="dodge"]').click();
   await until(s=>s.objects[0]?.age>.1);await screen('dodge-prepare');
   await until(s=>s.objects[0]?.age>s.objects[0]?.windup*.4);await screen('dodge-signal');
-  const state=await until(s=>s.objects[0]?.age>s.objects[0]?.windup*.67),cue=state.objects[0];await screen('dodge-perfect');
-  await p.keyboard.press({low:'ArrowUp',high:'ArrowDown',left:'ArrowRight',right:'ArrowLeft'}[cue.kind]);
-  assert.equal((await s()).perfect,0);await p.clock.runFor(Math.ceil((cue.windup-cue.age+.05)*1000));
+  const state=await until(s=>s.objects[0]?.age>s.objects[0]?.windup+.01),cue=state.objects[0];await screen('dodge-perfect');
+  await p.keyboard.press({low:'ArrowUp',high:'ArrowDown',mid:'ArrowLeft'}[cue.kind]);
+  assert.equal((await s()).perfect,0);await p.clock.runFor(Math.ceil((cue.windup-cue.age+.14)*1000));
   assert.equal((await s()).objects[0].outcome,'perfect');assert.equal((await s()).combo,1);await screen('dodge-strike');
   await p.clock.runFor(500);assert.equal((await s()).running,true);
  });

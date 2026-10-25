@@ -77,8 +77,8 @@ TrainingRenderer.prototype.hero = function(x,y,...args) {
       await page.clock.runFor(Math.ceil((apple.x - 350) / -apple.vx * 1000));
       const before = await capture(page, `${prefix}-strength-before`);
       await page.keyboard.press(['ArrowUp', 'ArrowRight', 'ArrowDown'][apple.lane]);
-      assert.ok((await inspect(page)).hits >= 1);
-      await page.clock.runFor(90);
+      await page.clock.runFor(20);assert.ok((await inspect(page)).hits>=1);
+      await page.clock.runFor(60);
       const after = await capture(page, `${prefix}-strength-swing`);
       assert.notDeepEqual(after, before);
       assert.ok((await inspect(page)).pose?.age > 0);
@@ -128,10 +128,10 @@ TrainingRenderer.prototype.hero = function(x,y,...args) {
     await check(`${prefix}: keyboard dodge responds to telegraphed direction and animates`, async () => {
       await page.locator('[data-mode="dodge"]').click(); await page.locator('.mode.active').click();
       const s = await until(page, s => s.objects[0]?.age > s.objects[0]?.windup * .65), cue = s.objects[0];
-      await page.keyboard.press({ low: 'ArrowUp', high: 'ArrowDown', left: 'ArrowRight', right: 'ArrowLeft' }[cue.kind]);
+      await page.keyboard.press({ low: 'ArrowUp', high: 'ArrowDown', mid:'ArrowLeft' }[cue.kind]);
       assert.equal((await inspect(page)).hits,0);
       await page.clock.runFor(100); assert.ok((await inspect(page)).pose);
-      await page.clock.runFor(Math.ceil((cue.windup-cue.age)*1000));assert.equal((await inspect(page)).hits,1);
+      await page.clock.runFor(Math.ceil((cue.windup+.13-cue.age)*1000));assert.equal((await inspect(page)).hits,1);
       await capture(page, `${prefix}-dodge`); await page.locator('#stop').click();
     });
     await check(`${prefix}: skull punishes input; critical requires keyboard jump and mouse strike`, async () => {
@@ -170,7 +170,7 @@ TrainingRenderer.prototype.hero = function(x,y,...args) {
       const s = await until(page, s => s.objects.some(o => o.type === 'apple'));
       const apple = s.objects.find(o => o.type === 'apple');
       await page.clock.runFor(Math.ceil((apple.x - 350) / -apple.vx * 1000));
-      await page.locator(`.souls-touch [data-key="${['ArrowUp','ArrowRight','ArrowDown'][apple.lane]}"]`).tap();
+      const target=await page.locator('#cv').boundingBox(),xy=[[330,320],[510,455],[330,620]][apple.lane];await page.touchscreen.tap(target.x+xy[0]*target.width/1200,target.y+xy[1]*target.height/720);await page.clock.runFor(20);
       assert.equal((await inspect(page)).hits, 1);
       await page.clock.runFor(90);
       await page.screenshot({ path: path.join(artifacts, `${prefix}-mobile.png`), fullPage: true });
@@ -184,6 +184,7 @@ TrainingRenderer.prototype.hero = function(x,y,...args) {
   await require('./browser-regressions.cjs')(browser, url, check);
   await require('./browser-delivery-a.cjs')(browser, url, check);
   await require('./browser-delivery-a1.cjs')(browser, url, check);
+  await require('./browser-delivery-a2.cjs')(browser, url, check);
   await check('GitHub Pages: application and modules load under /Argentum-Souls/', async () => {
     const page = await browser.newPage(), errors = [], failed = [];
     page.on('pageerror', e => errors.push(e.message));

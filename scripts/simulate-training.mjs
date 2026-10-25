@@ -1,38 +1,52 @@
 import {Training,strengthKey,MODES} from '../src/training/model.js';
 import {difficultyTarget,tuning} from '../src/training/balance.js';
+import {DODGE,SWORD} from '../src/training/geometry.js';
 import {writeFile,mkdir} from 'node:fs/promises';
 import assert from 'node:assert/strict';
-const rows=[];
-for(const combo of [0,10,25,50,100,150,200])for(const mode of Object.keys(MODES)){
+const samples=[0,25,50,75,100,150],rows=[],seconds=120;
+for(const combo of samples)for(const mode of Object.keys(MODES))for(const profile of ['instant','constrained']){
  let seed=1042;const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/2**32;};
- const e=new Training({random});e.start(mode);const d=difficultyTarget(combo),p=tuning(mode,d);
- let maxObjects=0,bursts=0,spawns=0,maxSpeed=0,minArrivalGap=Infinity,lastArrival=-Infinity;const seen=new Set();
- // Fixture holds combo/intensity constant; all objects, collisions and grading are real.
- for(let tick=0;tick<120*120;tick++){
+ const e=new Training({random});e.start(mode);const d=difficultyTarget(combo),p=tuning(mode,d),seen=new Map(),actions=new Set();
+ let spawns=0,bursts=0,maxObjects=0,maxSpeed=0,minSpeed=Infinity,minGap=Infinity,lastArrival=-Infinity,lastAction=-Infinity,lastHit=-99,angle=0,lastHits=0,minLead=Infinity;
+ for(let tick=0;tick<seconds*120;tick++){
   const s=e.session;s.combo=combo;s.difficulty=d;
-  if(mode==='str')for(const o of [...s.objects]){if(o.type==='star')e.input('ArrowLeft');else if(Math.abs(o.x-350)<24)e.input(strengthKey(o.lane));}
-  if(mode==='def') {const o=[...s.objects].sort((a,b)=>a.arrival-b.arrival)[0];if(o)e.setPointer(o.x,o.y);}
-  if(mode==='acc')for(const o of [...s.objects])if(o.age>.25)e.click(o.x,o.y);
-  if(mode==='dodge'){const o=s.objects[0];if(o&&!o.resolved&&o.age>=o.windup*.68)e.input({low:'ArrowUp',high:'ArrowDown',left:'ArrowRight',right:'ArrowLeft'}[o.kind]);}
-  if(mode==='crit'){const c=s.critical;if(c.stage==='ready')e.input(' ');else if(c.stage==='air'&&c.clock>=.1)e.input(' ');}
-  e.update(1/120);maxObjects=Math.max(maxObjects,s.objects.length);
-  for(const o of s.objects){maxSpeed=Math.max(maxSpeed,Math.hypot(o.vx??0,o.vy??0));if(seen.has(o.id))continue;seen.add(o.id);spawns++;bursts+=o.burst?1:0;if(mode==='def'){minArrivalGap=Math.min(minArrivalGap,o.arrival-lastArrival);lastArrival=o.arrival;}}
+  if(s.hits!==lastHits){lastHits=s.hits;lastHit=s.time;}
+  if(mode==='str')for(const o of [...s.objects])if(o.type==='apple'&&Math.abs(o.x-350)<(profile==='instant'?24:18)&&!actions.has(o.id)&&s.time-lastAction>(profile==='instant'?0:.11)){
+   e.input(strengthKey(o.lane));actions.add(o.id);lastAction=s.time;
+  }
+  if(mode==='def'){
+   const o=[...s.objects].sort((a,b)=>a.arrival-b.arrival)[0];if(o){const target=Math.atan2(o.y-390,o.x-600),delta=Math.atan2(Math.sin(target-angle),Math.cos(target-angle));
+    if(profile==='instant')angle=target;else if(s.time-lastHit>=.16)angle+=Math.max(-1000*Math.PI/180/120,Math.min(1000*Math.PI/180/120,delta));
+    e.setPointer(600+Math.cos(angle)*180,390+Math.sin(angle)*180);
+   }
+  }
+  if(mode==='acc'&&s.time-lastAction>(profile==='instant'?0:.18)){
+   const o=s.objects.find(o=>o.age>(profile==='instant'?.1:.18));if(o){e.click(o.x+o.r*(profile==='instant'?0:.18),o.y);lastAction=s.time;}
+  }
+  if(mode==='dodge'){const o=s.objects[0];if(o&&!o.resolved&&o.age>=o.windup+(profile==='instant'?.02:.1))e.input({low:'ArrowUp',high:'ArrowDown',mid:'ArrowLeft'}[o.kind]);}
+  if(mode==='crit'){const c=s.critical;if(c.stage==='ready'&&c.clock>=(profile==='instant'?0:.18))e.input(' ');else if(c.stage==='air'&&c.clock>=(profile==='instant'?.1:.18))e.input(' ');}
+  const before=new Map(s.objects.map(o=>[o.id,{x:o.x,y:o.y}]));e.update(1/120);maxObjects=Math.max(maxObjects,s.objects.length);
+  for(const o of s.objects){
+   if(o.type==='star')continue;
+   const old=before.get(o.id);if(old&&o.type==='apple'){const speed=Math.hypot(o.x-old.x,o.y-old.y)*120;maxSpeed=Math.max(maxSpeed,speed);minSpeed=Math.min(minSpeed,speed);}
+   if(!seen.has(o.id)){seen.set(o.id,{visible:false});spawns++;bursts+=o.burst?1:0;if(o.arrival!==undefined){minGap=Math.min(minGap,o.arrival-lastArrival);lastArrival=o.arrival;}}
+   const record=seen.get(o.id);if(!record.visible&&o.type==='apple'&&o.x>=17&&o.x<=1183&&o.y>=17&&o.y<=703){record.visible=true;minLead=Math.min(minLead,o.arrival-s.time);}
+  }
  }
- assert.equal(e.session.misses,0,`${mode} combo ${combo}: solver must complete fair sequences`);
- if(mode==='def')assert.ok(minArrivalGap>=.26-1e-8);
- rows.push({combo,mode,intensity:+d.toFixed(4),parameters:p,simulation:{seconds:120,spawns,bursts,maxObjects,maxSpeed:+maxSpeed.toFixed(2),minArrivalGap:Number.isFinite(minArrivalGap)?+minArrivalGap.toFixed(4):null,hits:e.session.hits,misses:e.session.misses}});
+ assert.equal(e.session.misses,0,`${profile} ${mode} combo ${combo}: failed constrained sequence`);
+ if(mode==='def')assert.ok(minGap>=.28-1e-8);
+ if(mode==='str')assert.ok(minGap>=.19-1e-8);
+ rows.push({combo,mode,profile,intensity:+d.toFixed(4),parameters:p,seconds,spawns,bursts,maxObjects,maxSpeed:+maxSpeed.toFixed(1),minSpeed:Number.isFinite(minSpeed)?+minSpeed.toFixed(1):null,minGap:Number.isFinite(minGap)?+minGap.toFixed(3):null,minVisibleLead:Number.isFinite(minLead)?+minLead.toFixed(3):null,hits:e.session.hits,misses:e.session.misses});
 }
-await mkdir(new URL('../artifacts/',import.meta.url),{recursive:true});
-await writeFile(new URL('../artifacts/balance-a1.json',import.meta.url),JSON.stringify(rows,null,2));
+await mkdir(new URL('../artifacts/',import.meta.url),{recursive:true});await writeFile(new URL('../artifacts/balance-a2.json',import.meta.url),JSON.stringify(rows,null,2));
 const f=n=>n.toFixed(3);
-let md='# Balance medido — Entrega A.1\n\nCada fila simula 120 segundos, con semilla 1042 y combo/intensidad fijados como fixture. El solucionador usa entradas del motor; todos los objetos y ventanas se ejecutan. No representa la velocidad de una persona ni calibra la curva definitiva de XP. 35 escenarios, sin fallos del solucionador.\n\n';
-md+='|Combo|Intensidad|Fuerza px/s / intervalo / ráfaga|Defensa viaje / intervalo / ráfaga|Precisión radio / vida / movimiento / intervalo / pareja|Esquiva anticipación / Bien / Perfecto|Crítico salto / aire / amague|\n|---:|---:|---|---|---|---|---|\n';
-for(const combo of [0,10,25,50,100,150,200]){
- const d=difficultyTarget(combo),s=tuning('str',d),b=tuning('def',d),a=tuning('acc',d),v=tuning('dodge',d),c=tuning('crit',d);
- md+=`|${combo}|${f(d)}|${f(s.speed)} ±15 / ${f(s.interval)} s / ${(s.pairChance*100).toFixed(1)}%|${f(b.travel)} s / ${f(b.interval)} s / ${(b.pairChance*100).toFixed(1)}%|${a.radius}–${a.radius+3} px / ${f(a.life)}–${f(a.life+.12)} s / ${f(a.motion)} px/s / ${f(a.interval)} s / ${(a.pairChance*100).toFixed(1)}%|${f(v.windup)} s / ${f(.2*v.windup)}–${f(v.windup+.08)} s / ${f(.62*v.windup)}–${f(.8*v.windup)} s|${f(c.ready)} s / ${f(c.air)} s / ${(c.fakeChance*100).toFixed(1)}%|\n`;
+let md='# Balance y presupuestos de respuesta — A.2\n\nCombos 0/25/50/75/100/150, cinco modos y dos perfiles de entrada, 120 segundos por escenario (60 simulaciones, semilla 1042). Intensidad fijada como fixture; la física, las ventanas y los controles del motor son reales. Los perfiles completaron las secuencias sin fallos. Esto verifica límites y compatibilidad entre controles/animaciones, no demuestra dificultad humana.\n\n';
+md+='|Combo|Intensidad|Fuerza horizontal / intervalo base / prob. ráfaga|Defensa viaje base / intervalo / prob. ráfaga|Precisión radio cercano / intervalo / vida / movimiento|Esquiva anticipación base / Perfecto|Crítico salto / aire / amague|\n|---:|---:|---|---|---|---|---|\n';
+for(const combo of samples){const d=difficultyTarget(combo),s=tuning('str',d),b=tuning('def',d),a=tuning('acc',d),v=tuning('dodge',d),c=tuning('crit',d);
+ md+=`|${combo}|${f(d)}|${f(s.speed)} ±10 px/s / ${f(s.interval)} s / ${(s.pairChance*100).toFixed(0)}%|${f(b.travel)} s / ${f(b.interval)} s / ${(b.pairChance*100).toFixed(0)}%|${(a.radius*1.36).toFixed(1)}–${(a.radius*1.36+3).toFixed(1)} px / ${f(a.interval)} s / ${f(a.life)}–${f(a.life+.12)} s / ${f(a.motion)} px/s|${f(v.windup)} s ±10% / −60 a +120 ms del ataque|${f(c.ready)} s ±6% / ${f(c.air)} s ±4% / ${(c.fakeChance*100).toFixed(0)}%|\n`;
 }
-md+='\nIntervalos normales: variación ±10%. Ráfagas: segundo objeto después de 0,17–0,21 s en Fuerza, 0,28–0,34 s en Defensa y 0,30–0,36 s en Precisión. Defensa conserva al menos 0,26 s entre impactos, con viaje mínimo 1,4 s. La velocidad depende del borde de entrada: se mide en el JSON, no es uniforme por dirección. Fuerza reordena llegadas si harían falta cortes en alturas distintas con menos de 0,17 s de separación; las velocidades pueden bajar para conservar esa distancia.\n\nPrecisión: diámetro físico mínimo previsto 50 px con ajuste por escala (radio máximo 110 px del mundo); Perfecto dentro de 16% del radio. Movimiento vertical hasta la mitad del horizontal. Separación mínima entre círculos: 30 px durante el movimiento; no se superponen. Esquiva: línea visible desde el nacimiento; antes del 20% es Fallo, del 20% al 62% es Bien, del 62% al 80% Perfecto y después Bien hasta +80 ms. Resultado al golpe; ejecución recta de 140 ms. Crítico: ventana Perfecta aérea 75–200 ms; máximo tres amagues consecutivos; las ventanas se fijan al mostrar cada señal.\n\nDificultad = min(1, log(1+combo/40)/log(6)), subida máxima 0,25/s y recuperación 0,55/s. A cero vuelve accesible en un máximo de 1,82 s. El tiempo de sesión no altera el objetivo.\n';
-md+='\n## Tasas medidas en la simulación\n\n|Combo|Modo|Objetos/s (o aciertos/s en Esquiva/Crítico)|Ráfagas|Velocidad máxima px/s|Menor separación de impactos Defensa|\n|---:|---|---:|---:|---:|---:|\n';
-for(const r of rows){const m=r.simulation;md+=`|${r.combo}|${r.mode}|${f((['dodge','crit'].includes(r.mode)?m.hits:m.spawns)/120)}|${m.bursts}|${m.maxSpeed}|${m.minArrivalGap??'—'}|\n`;}
-await writeFile(new URL('../docs/BALANCE_A1.md',import.meta.url),md);
-console.log('PASS 35 seeded simulations × 120 seconds; zero solver misses. Wrote docs/BALANCE_A1.md and artifacts/balance-a1.json');
+md+='\nLas frases alternan factores 0,82/1/1,16 durante 3–6 lanzamientos, con variación de intervalo ±8%. Fuerza también varía su velocidad por frase, limitada a 240–600 px/s horizontales. La curva alta modifica la velocidad total instantánea; la tabla siguiente la mide a partir de posiciones, no solo de vx. Los tres tipos nacen en la mano del muñeco, no en el borde superior. Defensa varía el tiempo de viaje levemente por frase y nunca baja de 1,02 s. Las ráfagas de Fuerza y Defensa pueden tener tres objetos; se reserva su espacio antes de comenzar una nueva frase.\n\n';
+md+='|Combo|Modo|Proyectil: velocidad total medida mín–máx px/s|Objetos/s o aciertos/s|Objetos de ráfaga|Menor intervalo de impactos|Menor aviso visible hasta contacto|\n|---:|---|---:|---:|---:|---:|---:|\n';
+for(const r of rows.filter(r=>r.profile==='constrained'))md+=`|${r.combo}|${r.mode}|${r.minSpeed??'—'}–${r.maxSpeed||'—'}|${f((['dodge','crit'].includes(r.mode)?r.hits:r.spawns)/seconds)}|${r.bursts}|${r.minGap??'—'} s|${r.minVisibleLead??'—'} s|\n`;
+md+='\n## Presupuestos de respuesta\n\n- Fuerza: una sola espada activa. El primer movimiento responde al pulsar; un cambio durante los primeros 45 ms guarda únicamente la última dirección. Se aplica al siguiente paso físico de 8,33 ms, conducido por requestAnimationFrame (unos 16,7 ms por frame a 60 Hz), sin esperar a la animación de 160 ms. Las llegadas se separan al menos 190 ms: quedan más de 130 ms por encima del compromiso y del paso físico. El perfil restringido limita nuevas acciones a una por 110 ms y apunta con margen de 18 px; es una prueba de capacidad, no una medición de reflejos. La ventana de acierto de 230 px dura aproximadamente 0,38–0,96 s; Perfecto (70 px) dura 0,12–0,29 s según velocidad horizontal. Los ataques pueden cortar más de una fruta en la misma altura.\n- Defensa: orientación directa, sin vuelta obligatoria. Separación de impactos `max(330−50*d ms, 180 ms + ángulo/π * 200 ms)`; para un giro de 180° hay al menos 380 ms. El perfil restringido espera 160 ms después de cada bloqueo y gira a un máximo de 1000°/s, sin teletransportar la orientación; completa ambos sentidos. Es una hipótesis de jugador entrenado que necesita validación personal. Las frutas pasan a ser imbloqueables al atravesar el radio de 76 px y rompen combo al tocar el cuerpo.\n- Precisión: 50% cercanos, 35% medianos y 15% lejanos; radio base multiplicado por 1,36/1,08/0,82. Ajuste por escala táctil. Perfecto sigue dentro del 16% del radio. Perfil restringido: mínimo 180 ms entre toques, tiempo inicial de lectura 180 ms y desviación lateral del 18% del radio (Bien). No se exige perfección de píxel para mantener combo.\n- Esquiva: solo cabezazo/agacharse, brazo/retroceder y patada/saltar. Preparación visible desde el comienzo; círculo blanco y `Perfecto` comparten la misma función: desde 60 ms antes hasta 120 ms después del inicio de ataque (180 ms). Bien desde el 20% de anticipación hasta +230 ms. Animación corporal responde sin esperar puntuación, que se confirma al cerrar la ventana. Perfil restringido actúa 160 ms después de abrir el círculo blanco.\n- Crítico: señal roja y dorada comparten círculo y exclamación, distinguidas por color y texto. Pausas normales de 0,13–0,49 s según frase; nunca aceleran indefinidamente. Perfecto aéreo 70–190 ms. Perfil restringido reacciona en 180 ms a ambos avisos; ignorar el rojo conserva su XP/combo una sola vez.\n\nEl perfil instantáneo sirve de control. El restringido comprueba que las secuencias toleran una latencia y cadencia limitadas; ninguno reemplaza a una persona. Las pruebas de Chromium agregan controles nativos, posiciones y píxeles dibujados, tres movimientos corporales distintos, pantalla completa y revisión visual de capturas actuales. No se afirma haber realizado una sesión humana ni una prueba en teléfono físico.\n';
+await writeFile(new URL('../docs/BALANCE_A2.md',import.meta.url),md);console.log('PASS 60 balance scenarios × 120 s (instant/constrained); zero misses. docs/BALANCE_A2.md and artifacts/balance-a2.json');
