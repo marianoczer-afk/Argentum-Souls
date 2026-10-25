@@ -49,11 +49,11 @@ async function check(name, fn) {
     page.on('pageerror', e => errors.push(e.message));
     page.on('response', r => { if (!r.ok() && !r.url().endsWith('favicon.ico')) failed.push(`${r.status()} ${r.url()}`); });
     // Test-only observation: capture the real engine, never replace outcomes or game input.
-    await page.route('**/training/model.js', async route => {
+    await page.route('**/training/model.js*', async route => {
       const response = await route.fetch();
       await route.fulfill({ response, body: await response.text() + '\nconst originalStart = Training.prototype.start; Training.prototype.start = function(...args) { const result = originalStart.apply(this,args); window.__training = this; return result; };\n' });
     });
-    await page.route('**/training/render.js', async route => {
+    await page.route('**/training/render.js*', async route => {
       const response = await route.fetch();
       await route.fulfill({ response, body: await response.text() + `
 const actualHero = TrainingRenderer.prototype.hero;
@@ -129,8 +129,9 @@ TrainingRenderer.prototype.hero = function(x,y,...args) {
       await page.locator('[data-mode="dodge"]').click(); await page.locator('.mode.active').click();
       const s = await until(page, s => s.objects[0]?.age > s.objects[0]?.windup * .65), cue = s.objects[0];
       await page.keyboard.press({ low: 'ArrowUp', high: 'ArrowDown', left: 'ArrowRight', right: 'ArrowLeft' }[cue.kind]);
-      assert.equal((await inspect(page)).hits, 1);
+      assert.equal((await inspect(page)).hits,0);
       await page.clock.runFor(100); assert.ok((await inspect(page)).pose);
+      await page.clock.runFor(Math.ceil((cue.windup-cue.age)*1000));assert.equal((await inspect(page)).hits,1);
       await capture(page, `${prefix}-dodge`); await page.locator('#stop').click();
     });
     await check(`${prefix}: skull punishes input; critical requires keyboard jump and mouse strike`, async () => {
@@ -142,7 +143,7 @@ TrainingRenderer.prototype.hero = function(x,y,...args) {
       await page.keyboard.press('Space'); assert.equal((await inspect(page)).critical.stage, 'jump');
       await page.clock.runFor(430); assert.equal((await inspect(page)).critical.stage, 'air');
       await capture(page, `${prefix}-critical-air`);
-      await canvasPoint(page, 600, 240); assert.equal((await inspect(page)).hits, 1);
+      const hitsBefore=(await inspect(page)).hits;await canvasPoint(page,600,240);assert.equal((await inspect(page)).hits,hitsBefore+1);
       await page.clock.runFor(100); await capture(page, `${prefix}-critical-strike`);
       await page.locator('#stop').click();
     });
@@ -179,8 +180,10 @@ TrainingRenderer.prototype.hero = function(x,y,...args) {
     assert.deepEqual(errors, [], 'no uncaught browser errors'); assert.deepEqual(failed, [], 'all application resources load');
     await context.close();
   }
+  await require('./browser-cache.cjs')(browser, url, check);
   await require('./browser-regressions.cjs')(browser, url, check);
   await require('./browser-delivery-a.cjs')(browser, url, check);
+  await require('./browser-delivery-a1.cjs')(browser, url, check);
   await check('GitHub Pages: application and modules load under /Argentum-Souls/', async () => {
     const page = await browser.newPage(), errors = [], failed = [];
     page.on('pageerror', e => errors.push(e.message));

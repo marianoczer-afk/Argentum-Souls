@@ -11,11 +11,13 @@ export function loadState(storage) {
     coins: Math.floor(number(raw.coins)), wins: Math.floor(number(raw.wins)),
     stats: values(ATTRIBUTES, raw.stats), xp: values(ATTRIBUTES, raw.xp),
     stations: values(ATTRIBUTES, raw.stations),
+    comboRecords: values(ATTRIBUTES, raw.comboRecords),
     gear: values(['sword', 'armor', 'shield', 'bow'], raw.gear),
   };
 }
 export function xpRequired(level) { return 20 + level * 4; }
-export function awardTraining(state, mode, { xp, gold }) {
+export function awardTraining(state, mode, { xp, gold, combo }) {
+  if(Number.isFinite(combo)){state.comboRecords ||= zeros();state.comboRecords[mode]=Math.max(state.comboRecords[mode]??0,combo);}
   state.xp ||= zeros();
   state.xp[mode] += xp;
   let levels = 0;

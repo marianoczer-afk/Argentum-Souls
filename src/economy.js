@@ -1,3 +1,4 @@
+import {mountProgressPanel} from './progress-panel.js';
 import { MODES } from './training/model.js';
 import { xpRequired } from './state.js';
 const GEAR = {
@@ -8,8 +9,10 @@ const GEAR = {
 };
 export function mountEconomy(state, save, canMutate = () => true, root = document) {
   const $ = id => root.querySelector(`#${id}`);
+  const renderTrainingProgress=mountProgressPanel(root,state);
   const station = document.createElement('div'); station.id = 'soulsStations'; $('shopList').insertAdjacentElement('afterend', station);
   function renderProgress() {
+    renderTrainingProgress();
     $('coins').textContent = state.coins.toLocaleString('es-AR');
     $('skills').innerHTML = Object.entries(MODES).map(([key, mode]) => `<div class="skillrow"><div><span>${mode.icon} ${mode.name}</span><b>Nv ${state.stats[key]}</b></div><div class="meter"><div style="width:${state.xp[key] / xpRequired(state.stats[key]) * 100}%"></div></div><small>${state.xp[key]} / ${xpRequired(state.stats[key])} XP</small></div>`).join('');
     $('arenaStats').innerHTML = `<p>🏆 Victorias: <b>${state.wins}</b></p><p>🪙 Monedas: <b>${state.coins}</b></p>` + Object.entries(MODES).map(([key, mode]) => `<p>${mode.icon} ${mode.name}: ${state.stats[key]}</p>`).join('');

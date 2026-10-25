@@ -1,11 +1,11 @@
-import { Training, MODES, WORLD, clamp } from './model.js';
+import { Training, MODES, WORLD, cuePresentation, clamp } from './model.js';
 import { TrainingRenderer } from './render.js';
-export function mountTraining({ root=document.getElementById('soulsApp'), reward, onSave, feedback=()=>{}, canMutate=()=>true, getProgress=()=>({level:0,xp:0,required:20}) }) {
+export function mountTraining({ root=document.getElementById('soulsApp'), reward, onSave, feedback=()=>{}, canMutate=()=>true, getRecord=()=>0, getProgress=()=>({level:0,xp:0,required:20}) }) {
   const $=id=>root.querySelector(`#${id}`), canvas=$('cv'), scene=$('scene');
-  const engine=new Training({reward,feedback}), renderer=new TrainingRenderer(canvas);
-  let selected='str',view='train',pauseReason=null;
+  const engine=new Training({reward,feedback,getRecord}), renderer=new TrainingRenderer(canvas);
+  let selected='str',view='train',pauseReason=null,lastMilestone=0;
   const actions=$('touchControls'),pause=$('pause');
-  function begin(){if(!canMutate())return;engine.start(selected);pauseReason=null;$('overlay').classList.add('hidden');$('result').textContent='Cada acierto suma experiencia. Salir conserva lo ganado.';update();}
+  function begin(){if(!canMutate())return;engine.start(selected);lastMilestone=0;pauseReason=null;$('overlay').classList.add('hidden');$('result').textContent='';update();}
   function modeButtons(){
     $('modes').innerHTML=Object.entries(MODES).map(([key,m])=>`<button class="mode ${key===selected?'active':''}" data-mode="${key}" aria-pressed="${key===selected}"><span class="emoji">${m.icon}</span>${m.name}</button>`).join('');
     $('modes').querySelectorAll('button').forEach(button=>button.onclick=()=>{onSave();selected=button.dataset.mode;engine.stop();engine.session=null;modeButtons();begin();button.blur();});
@@ -21,13 +21,16 @@ export function mountTraining({ root=document.getElementById('soulsApp'), reward
   function stop(){
     if(!engine.session?.running)return;engine.stop();pauseReason='exit';const saved=onSave(),s=engine.session;
     $('overlay').classList.remove('hidden');$('overlay').innerHTML=`<div><h3>${exitTitle(saved)}</h3><p>+${s.xp} XP · mejor combo ×${s.best}</p><p>${saved.message}</p></div>`;
-    $('result').textContent='Elegí una disciplina para volver a entrenar.';update();
+    $('result').textContent='';update();
   }
   function update(){
-    const s=engine.session,p=getProgress(selected);
-    $('combo').textContent=s?.combo??0;$('bestCombo').textContent=s?.best??0;$('sessionXp').textContent=s?.xp??0;
+    const s=engine.session,p=getProgress(selected),cue=cuePresentation(s);
+    $('cueBanner').hidden=!cue;if(cue){$('cueBanner').textContent=cue.text;$('cueBanner').dataset.tone=cue.tone;}
+    $('combo').textContent=s?.combo??0;$('bestCombo').textContent=Math.max(s?.best??0,getRecord(selected));$('sessionXp').textContent=s?.xp??0;
     $('attributeLevel').textContent=`${MODES[selected].name} · Nv ${p.level}`;$('attributeProgress').max=p.required;$('attributeProgress').value=p.xp;$('attributeXp').textContent=`${p.xp} / ${p.required} XP`;
-    $('soulsMission').textContent=s?.missionDone?'🎖 Misión completa · +15 monedas':`🎖 Aciertos ${Math.min(12,s?.hits??0)}/12 · combo ${Math.min(5,s?.best??0)}/5`;
+    $('soulsMission').textContent=s?.missionDone?'🎖 Completa · +12 XP · +15 monedas':`🎖 Aciertos ${Math.min(12,s?.hits??0)}/12 · combo ${Math.min(5,s?.best??0)}/5`;
+    $('rewardNotice').textContent=s?.notice?.text??'';
+    if(s?.milestoneId&&s.milestoneId!==lastMilestone){lastMilestone=s.milestoneId;if(!matchMedia('(prefers-reduced-motion: reduce)').matches)$('comboFocus').animate([{transform:'scale(1)'},{transform:'scale(1.18)',color:'#fff8bf'},{transform:'scale(1)'}],{duration:420});}
     $('actionFeedback').textContent=s?.feedback?.text??'';$('actionFeedback').dataset.tone=s?.feedback?.tone??'';
     pause.disabled=!canMutate()||!s?.running;pause.textContent=s?.paused?'▶ Continuar':'⏸ Pausar';$('stop').disabled=!s?.running;
   }

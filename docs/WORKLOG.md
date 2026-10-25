@@ -116,3 +116,25 @@ Primera marca de implementación registrada: **05:32:12 del 25 de octubre de 202
 - Se mantuvo el guardado existente sin modificar su estructura y sin cambiar la fórmula provisional de XP en esta etapa. Sigue pendiente estimar 10/25/50/75/100 antes de fijar la curva de B.
 - Artefactos locales: `artifacts/delivery-a-results.json`, `artifacts/browser-results.json`, `artifacts/animation-mutation.json`, capturas y `artifacts/argentum-souls-entrega-a.zip`. El ZIP contiene solo `dist/` listo para servir por HTTP; no incluye credenciales ni guardados.
 - Duración individual de commit, push y creación del PR: **NO MEDIDO**. No se modificó main ni se desplegó Pages en esta sesión.
+
+### Corrección de carga después de Entrega A — 2026-10-25
+
+La captura del usuario muestra HTML de A con estilos/JavaScript anteriores: sonido junto a «Salir», pausa duplicada y canvas sin dibujo. El PR #2 ya estaba fusionado (4007215). La configuración Pages continúa en modo legacy/main; no se cambió ni se desplegó desde esta corrección. No fue posible inspeccionar la URL pública desde este entorno (proxy HTTP 403), por lo que no se afirma haber verificado su caché real.
+
+Se reprodujo en Chromium el arranque roto sirviendo el HTML nuevo con app, controlador y CSS reales de 44fb005. La compilación ahora agrega una identidad de contenido a CSS y al módulo inicial; un import map versiona también todas las dependencias transitivas. Las rutas siguen siendo relativas y funcionan bajo `/Argentum-Souls/`. La entrada de publicación es `index.html` generado; `src/index.html` sigue siendo una entrada de desarrollo sin compilación.
+
+La nueva regresión mantiene disponibles los archivos viejos, recarga con los recursos versionados y exige cinco modos, sonido dentro del diálogo, un único botón pausa, estilos aplicados, canvas dibujado, cero errores y la misma XP/guardado. Se conserva una fixture de los tres archivos anteriores para reproducir el problema sin depender del historial Git en CI. No se alteran los datos guardados ni las mecánicas.
+
+Validación local final: 30 pruebas unitarias, 35 comprobaciones de Chromium y las dos detecciones deliberadas de animación rota aprobadas. Inspección visual de `artifacts/cache-fix-desktop.png` con escena, personaje y cinco modos presentes. La regresión de caché se ejecutó también por separado después de exigir explícitamente la pausa duplicada en el control roto. El test de compilación exige además la versión en el `src` del módulo inicial: un import map por sí solo no versiona esa entrada HTML.
+
+### Entrega A.1 — 2026-10-25 (Buenos Aires)
+
+Implementación desde `main`/4007215 en rama nueva `dev/delivery-a1-training-polish`, incorporando la corrección de caché todavía pendiente del PR #3. No se cambió `main`, Pages, las arenas ni los personajes.
+
+Se añadieron configuración única de balance, secuencias y ráfagas graduales, llegadas espaciadas en Defensa y Fuerza, blancos algo mayores y parejas probabilísticas, trazos rectos y aceptación temprana razonable en Esquiva, recompensas por amagues leídos y ventanas limitadas en Crítico. HUD centrado, ayuda y controles dentro del marco, panel lateral con niveles/XP y animaciones reales. `comboRecords` es una extensión aditiva del guardado Souls para que los premios de hitos no se repitan tras recargar; no migra ni toca Idle v7. Se preserva el protocolo de escritor exclusivo.
+
+Las primeras pruebas señalaron expectativas anteriores incompatibles con el pedido: origen de Defensa dentro de escena, resultados inmediatos de Esquiva, pares obligatorios a combo 25 y amagues sin recompensa. Se adaptaron a las reglas solicitadas manteniendo los controles reales y las regresiones previas. La comparación exacta de flotantes de velocidad se cambió por tolerancia 1e-8. La inspección visual detectó que capturar inmediatamente tras cambiar de modo con reloj detenido fotografiaba el frame anterior: las capturas ahora avanzan un frame antes de tomar la imagen. Los avisos pasaron a texto DOM para conservar legibilidad en móvil.
+
+Validación y parámetros detallados: `docs/DELIVERY_A1.md` y `docs/BALANCE_A1.md`. Las simulaciones mantienen el combo como fixture y no se presentan como sesiones humanas completas a combo 200. Se inspeccionaron capturas de escritorio, móvil, ráfagas, ejecución de Esquiva y anillo Perfecto de Crítico.
+
+Cierre local de A.1: 40 unitarias aprobadas, 43 comprobaciones Chromium aprobadas y ambas mutaciones de `hero()` detectadas por sus aserciones de movimiento. Las 35 simulaciones × 120 s terminaron con cero fallos del solucionador. Se volvió a ejecutar el módulo de navegador A.1 tras exigir píxeles reales de manzanas y mejor combo persistente. La configuración de publicación no se cambió y no se desplegó la URL pública.

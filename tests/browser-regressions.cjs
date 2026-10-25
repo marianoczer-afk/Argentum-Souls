@@ -5,7 +5,7 @@ const KEY = 'argentum_souls_fiel_v2';
 module.exports = async function regressions(browser, url, check) {
   async function context(init) {
     const ctx = await browser.newContext({ viewport: { width: 900, height: 1000 }, hasTouch: true });
-    await ctx.route('**/training/model.js', async route => {
+    await ctx.route('**/training/model.js*', async route => {
       const r = await route.fetch(); await route.fulfill({ response: r, body: await r.text() + '\nconst start=Training.prototype.start;Training.prototype.start=function(...a){const s=start.apply(this,a);window.__training=this;return s;};' });
     });
     if (init) await ctx.addInitScript(init);
@@ -157,13 +157,13 @@ module.exports = async function regressions(browser, url, check) {
       const p = await page(ctx); await start(p,'crit',true);
       await until(p,s=>s.critical.stage==='ready'); await p.locator('.souls-touch [data-key=" "]').tap();
       assert.equal((await session(p)).critical.stage,'jump'); await p.clock.runFor(430);
-      assert.equal((await session(p)).critical.stage,'air'); const q=await screenPoint(p,600,230);
-      await p.touchscreen.tap(q.x,q.y); assert.equal((await session(p)).hits,1); assert.equal((await session(p)).combo,1);
+      assert.equal((await session(p)).critical.stage,'air');const priorHits=(await session(p)).hits; const q=await screenPoint(p,600,230);
+      await p.touchscreen.tap(q.x,q.y); assert.equal((await session(p)).hits,priorHits+1);assert.ok((await session(p)).combo>=1);
       const earned=await progress(p); assert.ok(earned.xp.crit>0);
-      await p.touchscreen.tap(q.x,q.y); assert.equal((await session(p)).hits,1); assert.deepEqual(await progress(p),earned);
-      await until(p,s=>s.critical.stage==='fake'); const misses=(await session(p)).misses;
+      await p.touchscreen.tap(q.x,q.y);assert.equal((await session(p)).hits,priorHits+1);assert.deepEqual(await progress(p),earned);
+      await until(p,s=>s.critical.stage==='fake');const beforeFake=await progress(p); const misses=(await session(p)).misses;
       await p.touchscreen.tap(q.x,q.y); assert.equal((await session(p)).combo,0); assert.equal((await session(p)).misses,misses+1);
-      assert.deepEqual(await progress(p),earned); await p.locator('#stop').tap(); assert.deepEqual(await stored(p),earned);
+      assert.deepEqual(await progress(p),beforeFake);await p.locator('#stop').tap();assert.deepEqual(await stored(p),beforeFake);
     } finally { await ctx.close(); }
   });
   await check('touch dodge: correct directional response earns XP', async () => {
@@ -172,7 +172,8 @@ module.exports = async function regressions(browser, url, check) {
       const p=await page(ctx);await start(p,'dodge',true);
       const s=await until(p,s=>s.objects[0]?.age>s.objects[0]?.windup*.65);
       const key={low:'ArrowUp',high:'ArrowDown',left:'ArrowRight',right:'ArrowLeft'}[s.objects[0].kind];
-      await p.locator(`.souls-touch [data-key="${key}"]`).tap();assert.equal((await session(p)).hits,1);
+      await p.locator(`.souls-touch [data-key="${key}"]`).tap();assert.equal((await session(p)).hits,0);
+      await p.clock.runFor(Math.ceil((s.objects[0].windup-s.objects[0].age+.02)*1000));assert.equal((await session(p)).hits,1);
       assert.ok((await progress(p)).xp.dodge>0);await p.locator('#stop').tap();assert.deepEqual(p.auditErrors,[]);
     }finally{await ctx.close();}
   });

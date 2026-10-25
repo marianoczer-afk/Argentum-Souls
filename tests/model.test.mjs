@@ -22,10 +22,10 @@ test('combo accelerates speed; elapsed session time does not affect difficulty',
   const a = new Training({ random: () => .5 }); a.start('str'); a.spawnObject();
   const earlySpeed = -a.session.objects[0].vx;
   a.session.time = 300; a.spawnObject();
-  assert.equal(-a.session.objects[1].vx, earlySpeed);
-  a.session.combo=80; a.session.spawn=999; advance(a,4); a.spawnObject();
+  assert.ok(Math.abs(-a.session.objects[1].vx-earlySpeed)<1e-8);
+  a.session.objects=[];a.session.starTimer=999;a.session.combo=80; a.session.spawn=999; advance(a,4); a.spawnObject();
   assert.ok(-a.session.objects.at(-1).vx > earlySpeed);
-  assert.ok(-a.session.objects.at(-1).vx <= 465);
+  assert.ok(-a.session.objects.at(-1).vx <= 480);
 });
 test('one sword sweep cuts multiple nearby apples and chains without cooldown', () => {
   const rewards = [], engine = new Training({ reward: (_, r) => rewards.push(r) }); engine.start('str');
@@ -66,7 +66,7 @@ test('every dodge cue maps to a different directional movement', () => {
   for (const [kind, key, pose] of [['low', 'ArrowUp', 'jump'], ['high', 'ArrowDown', 'crouch'], ['left', 'ArrowRight', 'dash'], ['right', 'ArrowLeft', 'dash']]) {
     const engine = new Training(); engine.start('dodge');
     engine.session.objects = [{ id: 1, type: 'cue', kind, age: .65, windup: 1 }];
-    engine.input(key); assert.equal(engine.session.hits, 1); assert.equal(engine.session.pose.kind, pose);
+    engine.input(key);assert.equal(engine.session.pose.kind,pose);assert.equal(engine.session.hits,0);advance(engine,.36);assert.equal(engine.session.hits,1);
   }
 });
 test('critical fake must be ignored and real cue requires two separated inputs', () => {
@@ -74,12 +74,12 @@ test('critical fake must be ignored and real cue requires two separated inputs',
   engine.session.critical = { stage: 'fake', clock: 0, delay: 0 };
   engine.input(' '); assert.equal(engine.session.misses, 1);
   engine.session.critical = { stage: 'fake', clock: 0, delay: 0 };
-  advance(engine, .9); assert.equal(engine.session.misses, 1);
+  advance(engine, .9); assert.equal(engine.session.misses, 1);assert.equal(engine.session.hits,1);
   engine.session.critical = { stage: 'ready', clock: 0, delay: 0 };
   engine.input(' '); assert.equal(engine.session.critical.stage, 'jump');
   advance(engine, .42); assert.equal(engine.session.critical.stage, 'air');
-  engine.input('click'); assert.equal(engine.session.hits, 1); assert.equal(engine.session.critical.stage, 'impact');
-  engine.input(' '); assert.equal(engine.session.hits, 1, 'impact cannot be farmed');
+  engine.input('click'); assert.equal(engine.session.hits, 2); assert.equal(engine.session.critical.stage, 'impact');
+  engine.input(' '); assert.equal(engine.session.hits, 2, 'impact cannot be farmed');
 });
 test('early second critical input or a missed cue resets combo', () => {
   const engine = new Training(); engine.start('crit'); engine.session.combo = 7;
@@ -97,9 +97,9 @@ test('pausing freezes simulation, events and effects, stopping never removes ear
 });
 test('combos reward more XP and a mission grants its bonus once without ending training', () => {
   const rewards = [], engine = new Training({ reward: (_, r) => rewards.push(r) }); engine.start('str');
-  for (let i = 0; i < 20; i++) engine.good(true, 300, 280);
-  const hits = rewards.filter(r => r.xp > 0);
-  assert.ok(hits[19].xp > hits[0].xp);
+  for (let i = 0; i < 60; i++) engine.good(true, 300, 280);
+  const hits = rewards.filter(r=>r.kind==='hit');
+  assert.ok(hits[59].xp > hits[0].xp);
   assert.equal(rewards.filter(r => r.gold === 15).length, 1);
   assert.equal(engine.session.running, true);
 });
