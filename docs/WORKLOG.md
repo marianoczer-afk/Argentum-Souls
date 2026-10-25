@@ -41,3 +41,12 @@ Informes completos de esta máquina: `artifacts/command-results.json` y `artifac
 ## Alcance y pendientes
 
 Primera entrega de entrenamiento implementada. La arena del prototipo y la tienda siguen jugables en módulos separados. No se implementaron todavía personajes/razas/clases, nuevos desbloqueos de arena ni la revisión completa de combate. `Idle-Czerniak` y su guardado v7 no fueron modificados. Main no se fusiona ni se despliega automáticamente.
+
+## Publicación de la rama y PR
+
+- Commit de implementación: `b913263` (`feat: add continuous modular training with responsive controls`).
+- `git push --set-upstream origin dev/continuous-training`: correcto; rama remota creada y seguimiento configurado. Duración individual: **NO MEDIDO**.
+- `gh pr create --repo marianoczer-afk/Argentum-Souls --base main --head dev/continuous-training ... --body-file ...`: bloqueado, `Post "https://api.github.com/graphql": Forbidden`. No se creó un PR; no es un fallo de las pruebas ni una fusión.
+- Texto del PR preparado en `/tmp/argentum-training-pr.md` en esta máquina. Comparación para revisión: https://github.com/marianoczer-afk/Argentum-Souls/compare/main...dev/continuous-training?expand=1
+- Borrador del entorno guardado con `install_script`, `start_skill` actualizados y `api.github.com` como dominio adicional. Requiere revisión/guardado y publicación desde los ajustes del entorno; aún no demuestra acceso efectivo a la API. No se solicitaron ni copiaron tokens.
+- La rama main remota conserva `438977b5bd12f3876c9e4ca4fecb3449a02b42ab`. No se modificó la configuración de GitHub Pages ni se publicó la rama de desarrollo en producción.
