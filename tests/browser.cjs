@@ -9,7 +9,7 @@ const { setTimeout: delay } = require('node:timers/promises');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..'), artifacts = path.join(root, 'artifacts');
 let url;
-const results = [];
+const results = [];let activeCheck='startup';
 const started = performance.now();
 let server, browser, pagesRoot;
 async function ready(page){for(let i=0;i<100;i++){if(await page.evaluate(()=>!!window.ArgentumSoulsBridge))return;await delay(20);}throw Error('Application did not initialize');}
@@ -25,7 +25,7 @@ async function canvasPoint(page, x, y, click = true) {
 }
 async function capture(page, name) { return page.locator('#cv').screenshot({ path: path.join(artifacts, `${name}.png`) }); }
 async function check(name, fn) {
-  const t = performance.now(); await fn();
+  activeCheck=name;const t = performance.now(); await fn();
   results.push({ name, status: 'passed', duration_ms: Math.round(performance.now() - t) }); console.log('PASS', name);
 }
 (async () => {
@@ -199,7 +199,8 @@ TrainingRenderer.prototype.hero = function(x,y,...args) {
     await page.close();
   });
 })().catch(error => {
-  results.push({ name: 'browser suite', status: 'failed', error: error.stack }); console.error(error); process.exitCode = 1;
+  if(process.env.GITHUB_ACTIONS)console.log('::error title=Chromium regression::'+`${activeCheck}\n${error.stack}`.replaceAll('%','%25').replaceAll('\r','%0D').replaceAll('\n','%0A'));
+  results.push({ name: activeCheck, status: 'failed', error: error.stack }); console.error(error); process.exitCode = 1;
 }).finally(async () => {
   await browser?.close(); server?.kill();
   if (pagesRoot) await rm(pagesRoot, { recursive: true, force: true });
