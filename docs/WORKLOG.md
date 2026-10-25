@@ -98,3 +98,21 @@ Primera marca de implementación registrada: **05:32:12 del 25 de octubre de 202
 - Se revisaron capturas de escritorio, configuración, parejas de precisión, estrella, móvil vertical/horizontal y cuatro fases de esquiva. La resolución lógica es 1200×720, sin deformación. Capturas en `artifacts/delivery-a-*.png`.
 - El build de publicación se probó con dos números de CI y SHA distintos en copias temporales. La configuración actual de Pages sigue en modo branch/main; el PR prepara Actions y documenta la selección de ese origen antes de publicar con numeración automática. No se cambia Pages ni se publica main desde esta sesión.
 - La fórmula de XP anterior queda provisional en A. No se fija una curva de seis meses/260 horas sin la simulación y estimaciones que se presentarán en B.
+
+### Validación final de A
+
+Última marca de revisión y empaquetado: **06:01:43 Buenos Aires**. El intervalo desde 05:32:12 incluye implementación, diagnósticos, esperas, tests y documentación.
+
+| Comando | Inicio Buenos Aires | Duración del proceso | Resultado |
+| --- | --- | --- | --- |
+| `npm run build` | 05:57:56 | 261 ms | salida 0 |
+| `npm test` | 05:57:56 | 482 ms | salida 0 |
+| `npm run test:browser` | 05:57:56 | 69443 ms | salida 0 |
+| `npm run test:mutation` | 05:59:06 | 2430 ms | salida 0 |
+
+- **30 pruebas unitarias y 34 comprobaciones Chromium aprobadas**, sin fallidas ni omitidas. Las 34 incluyen las regresiones de guardado y las siete comprobaciones específicas de A. Se preservó la sensibilidad de las pruebas a cuerpos sin animación: los dos fallos internos de la mutación son esperados y específicos.
+- Commit fuente: `f938a09a0ae445bdcaa544e9ddbe52c7d7366258`. Build comprobado: `0.3.0-dev.e4924e8`, digest `e4924e82b390`, sin marca de cambios locales. El commit posterior solo registra HTML generado, documentación y capturas de revisión; no cambia las fuentes del juego.
+- Se comprobaron escritorio 1440×1000, móvil 390×844 y horizontal 844×390, proporción 5:3, indicadores dentro de la escena e inicio automático. Se revisaron las cuatro fases de Esquiva en capturas; una respuesta perfecta permanece válida al ejecutarse el golpe.
+- Se mantuvo el guardado existente sin modificar su estructura y sin cambiar la fórmula provisional de XP en esta etapa. Sigue pendiente estimar 10/25/50/75/100 antes de fijar la curva de B.
+- Artefactos locales: `artifacts/delivery-a-results.json`, `artifacts/browser-results.json`, `artifacts/animation-mutation.json`, capturas y `artifacts/argentum-souls-entrega-a.zip`. El ZIP contiene solo `dist/` listo para servir por HTTP; no incluye credenciales ni guardados.
+- Duración individual de commit, push y creación del PR: **NO MEDIDO**. No se modificó main ni se desplegó Pages en esta sesión.

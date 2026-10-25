@@ -40,3 +40,5 @@ Comandos y tiempos finales en `docs/WORKLOG.md`.
 **C:** cuatro enemigos por arena, jefes, clases/habilidades/equipo y dificultad de combate. La arena actual se conserva para seguir jugando; no se declara completado el sistema de 100 arenas.
 
 Referencia de HUD y datos consultada en modo lectura: `Idle-Czerniak`, commit `59977270a68c3a05f84eb760117b1a990d969c89`, especialmente `src/js/core/005-core.js` (identidad y workspace). No se copiaron ni modificaron guardados, ni se inventaron modificadores de razas/clases.
+
+Capturas seleccionadas de revisión: [escritorio](screenshots/delivery-a-desktop.png) y [móvil](screenshots/delivery-a-mobile.png). Son capturas de pruebas, no un despliegue público.
