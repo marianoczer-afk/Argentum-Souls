@@ -1,90 +1,55 @@
-import { Training, MODES } from './model.js';
+import { Training, MODES, WORLD, clamp } from './model.js';
 import { TrainingRenderer } from './render.js';
-export function mountTraining({ reward, onSave, feedback = () => {}, canMutate = () => true }) {
-  const $ = id => document.getElementById(id), canvas = $('cv');
-  const engine = new Training({ reward, feedback });
-  const renderer = new TrainingRenderer(canvas);
-  let selected = 'str', view = 'train';
-  const actions = document.createElement('div'); actions.className = 'souls-touch';
-  actions.innerHTML = '<button type="button" data-key="ArrowLeft">← Medio / Izq.</button><button type="button" data-key="ArrowUp">↑ Alto / Salto</button><button type="button" data-key="ArrowDown">↓ Bajo / Agacharse</button><button type="button" data-key="ArrowRight">→ Estrella / Der.</button><button type="button" data-key=" ">⚡ Acción</button>';
-  $('scene').insertAdjacentElement('afterend', actions);
-  const mission = document.createElement('div'); mission.id = 'soulsMission'; mission.className = 'notice'; mission.setAttribute('aria-live', 'polite'); actions.insertAdjacentElement('afterend', mission);
-  const pause = document.createElement('button'); pause.id = 'pause'; pause.className = 'btn'; pause.textContent = '⏸ Pausar'; $('stop').insertAdjacentElement('afterend', pause);
-  function syncModes() {
-    $('modes').innerHTML = Object.entries(MODES).map(([key, m]) => `<button class="mode ${key === selected ? 'active' : ''}" data-mode="${key}"><span class="emoji">${m.icon}</span>${m.name}</button>`).join('');
-    $('modes').querySelectorAll('button').forEach(button => button.onclick = () => {
-      if (engine.session?.running) stop();
-      selected = button.dataset.mode; engine.session = null;
-      $('overlay').classList.remove('hidden');
-      $('overlay').innerHTML = `<div><h3>${MODES[selected].name}</h3><p>Entrená sin límite. Cada acierto suma experiencia; salir conserva lo ganado.</p></div>`;
-      $('result').textContent = 'Elegí empezar cuando estés listo.';
-      syncModes(); update(); renderer.draw(engine, selected);
+export function mountTraining({ root=document.getElementById('soulsApp'), reward, onSave, feedback=()=>{}, canMutate=()=>true, getProgress=()=>({level:0,xp:0,required:20}) }) {
+  const $=id=>root.querySelector(`#${id}`), canvas=$('cv'), scene=$('scene');
+  const engine=new Training({reward,feedback}), renderer=new TrainingRenderer(canvas);
+  let selected='str',view='train',pauseReason=null;
+  const actions=$('touchControls'),pause=$('pause');
+  function begin(){if(!canMutate())return;engine.start(selected);pauseReason=null;$('overlay').classList.add('hidden');$('result').textContent='Cada acierto suma experiencia. Salir conserva lo ganado.';update();}
+  function modeButtons(){
+    $('modes').innerHTML=Object.entries(MODES).map(([key,m])=>`<button class="mode ${key===selected?'active':''}" data-mode="${key}" aria-pressed="${key===selected}"><span class="emoji">${m.icon}</span>${m.name}</button>`).join('');
+    $('modes').querySelectorAll('button').forEach(button=>button.onclick=()=>{onSave();selected=button.dataset.mode;engine.stop();engine.session=null;modeButtons();begin();button.blur();});
+    $('guide').textContent=MODES[selected].guide;canvas.style.cursor=selected==='acc'?'none':'default';
+    actions.hidden=['def','acc'].includes(selected);
+    actions.querySelectorAll('[data-key]').forEach(button=>{
+      button.hidden=selected==='crit'?button.dataset.key!==' ':button.dataset.key===' ';
+      const labels=selected==='str'?{ArrowLeft:'← Estrella',ArrowUp:'↑ Alto',ArrowRight:'→ Corte',ArrowDown:'↓ Bajo'}:{ArrowLeft:'← Izquierda',ArrowUp:'↑ Saltar',ArrowRight:'→ Derecha',ArrowDown:'↓ Agacharse'};
+      button.textContent=labels[button.dataset.key]||'⚡ Acción';
     });
-    $('instructions').textContent = MODES[selected].desc; $('guide').textContent = MODES[selected].guide;
-    canvas.style.cursor = selected === 'acc' ? 'none' : 'default';
-    actions.hidden = ['def', 'acc'].includes(selected);
-    actions.querySelectorAll('[data-key]').forEach(button => { button.hidden = selected === 'crit' ? button.dataset.key !== ' ' : button.dataset.key === ' '; });
   }
-  function stop() {
-    if (!engine.session?.running) return;
-    engine.stop(); const saved = onSave();
-    const s = engine.session;
-    $('overlay').classList.remove('hidden');
-    $('overlay').innerHTML = `<div><h3>${saved.status === 'saved' ? 'Sesión guardada' : saved.status === 'memory' ? 'Progreso solo en memoria' : 'No se pudo guardar'}</h3><p>+${s.xp} experiencia · +${s.gold} monedas · mejor combo ×${s.best}</p><p>${saved.message}</p></div>`;
-    $('result').textContent = `Conservás lo ganado: ${s.hits} aciertos, ${s.perfect} perfectos y ${s.misses} fallos.`;
-    update();
+  function exitTitle(saved){return saved.status==='saved'?'Sesión guardada':saved.status==='memory'?'Progreso solo en memoria':'No se pudo guardar';}
+  function stop(){
+    if(!engine.session?.running)return;engine.stop();pauseReason='exit';const saved=onSave(),s=engine.session;
+    $('overlay').classList.remove('hidden');$('overlay').innerHTML=`<div><h3>${exitTitle(saved)}</h3><p>+${s.xp} XP · mejor combo ×${s.best}</p><p>${saved.message}</p></div>`;
+    $('result').textContent='Elegí una disciplina para volver a entrenar.';update();
   }
-  function update() {
-    const s = engine.session, time = Math.floor(s?.time ?? 0);
-    $('timer').textContent = `${Math.floor(time / 60)}:${String(time % 60).padStart(2, '0')}`;
-    $('score').textContent = s?.score ?? 0; $('combo').textContent = s?.combo ?? 0; $('perfect').textContent = s?.perfect ?? 0;
-    mission.textContent = s ? `🎖 ${s.missionDone ? 'MISIÓN COMPLETA · +15 monedas' : `MISIÓN · Aciertos ${Math.min(12, s.hits)}/12 · Mejor combo ${Math.min(5, s.best)}/5`} | +${s.xp} XP · +${s.gold} monedas` : '🎖 Misión por sesión: 12 aciertos y combo ×5. El entrenamiento continúa al completarla.';
-    pause.disabled = !canMutate() || !s?.running; pause.textContent = s?.paused ? '▶ Continuar' : '⏸ Pausar';
-    $('start').disabled = !canMutate() || !!s?.running; $('stop').disabled = !s?.running;
+  function update(){
+    const s=engine.session,p=getProgress(selected);
+    $('combo').textContent=s?.combo??0;$('bestCombo').textContent=s?.best??0;$('sessionXp').textContent=s?.xp??0;
+    $('attributeLevel').textContent=`${MODES[selected].name} · Nv ${p.level}`;$('attributeProgress').max=p.required;$('attributeProgress').value=p.xp;$('attributeXp').textContent=`${p.xp} / ${p.required} XP`;
+    $('soulsMission').textContent=s?.missionDone?'🎖 Misión completa · +15 monedas':`🎖 Aciertos ${Math.min(12,s?.hits??0)}/12 · combo ${Math.min(5,s?.best??0)}/5`;
+    $('actionFeedback').textContent=s?.feedback?.text??'';$('actionFeedback').dataset.tone=s?.feedback?.tone??'';
+    pause.disabled=!canMutate()||!s?.running;pause.textContent=s?.paused?'▶ Continuar':'⏸ Pausar';$('stop').disabled=!s?.running;
   }
-  $('start').onclick = () => {
-    if (!canMutate()) return;
-    $('start').blur(); engine.start(selected); $('overlay').classList.add('hidden');
-    $('result').textContent = 'Entrenamiento continuo. Cada acierto suma experiencia; salir conserva lo ganado.'; update();
-  };
-  $('stop').onclick = stop;
-  pause.onclick = () => { if (!canMutate()) return; pause.blur(); engine.pause(!engine.session?.paused); update(); };
-  const isTyping = target => target instanceof Element && !!target.closest('input,textarea,select,[contenteditable="true"],button');
-  document.addEventListener('keydown', event => {
-    if (!canMutate() || view !== 'train' || isTyping(event.target)) return;
-    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(event.key)) event.preventDefault();
-    if (event.repeat) return;
-    engine.input(event.key); update();
-  });
-  actions.querySelectorAll('button').forEach(button => button.addEventListener('pointerdown', event => {
-    event.preventDefault(); if (!canMutate()) return; engine.input(button.dataset.key); update();
-  }));
-  function point(event) {
-    const r = canvas.getBoundingClientRect();
-    return { x: (event.clientX - r.left) * canvas.width / r.width, y: (event.clientY - r.top) * canvas.height / r.height };
-  }
-  canvas.addEventListener('pointermove', event => { const p = point(event); engine.setPointer(p.x, p.y); });
-  canvas.addEventListener('pointerdown', event => {
-    if (!canMutate()) return;
-    event.preventDefault(); canvas.setPointerCapture(event.pointerId);
-    const p = point(event); engine.click(p.x, p.y); update();
-  });
-  function autoPause() { if (engine.active) { engine.pause(true); onSave(); update(); } }
-  window.addEventListener('blur', autoPause);
-  document.addEventListener('visibilitychange', () => { if (document.hidden) autoPause(); });
-  syncModes(); update(); renderer.draw(engine, selected);
-  return {
-    engine,
-    syncAccess(result) {
-      if (!canMutate()) engine.pause(true);
-      if (engine.session && !engine.session.running) {
-        $('overlay').querySelector('h3').textContent = result.status === 'saved' ? 'Sesión guardada' : result.status === 'memory' ? 'Progreso solo en memoria' : 'No se pudo guardar';
-        $('overlay').querySelector('p:last-child').textContent = result.message;
-      }
-      update();
-    },
-    setView(value) { view = value; if (value !== 'train') autoPause(); },
-    update(dt) { if (canMutate() && view === 'train') { engine.update(dt); } },
-    draw() { if (view === 'train') { renderer.draw(engine, selected); update(); } },
+  function pauseFor(reason){if(engine.active){engine.pause(true);pauseReason=reason;onSave();update();}}
+  pause.onclick=()=>{if(!canMutate())return;engine.pause(!engine.session?.paused);pauseReason=engine.session?.paused?'manual':null;pause.blur();update();};
+  $('stop').onclick=stop;
+  const typing=target=>target instanceof Element&&!!target.closest('input,textarea,select,dialog,[contenteditable="true"],button');
+  const keydown=event=>{if(!canMutate()||view!=='train'||typing(event.target)||root.hidden)return;if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(event.key))event.preventDefault();if(!event.repeat){engine.input(event.key);update();}};
+  document.addEventListener('keydown',keydown);
+  actions.querySelectorAll('button').forEach(button=>button.addEventListener('pointerdown',event=>{event.preventDefault();if(canMutate()){engine.input(button.dataset.key);update();}}));
+  function point(event){const r=canvas.getBoundingClientRect();return{x:clamp((event.clientX-r.left)*WORLD.width/r.width,0,WORLD.width),y:clamp((event.clientY-r.top)*WORLD.height/r.height,0,WORLD.height)};}
+  canvas.addEventListener('pointermove',event=>{const p=point(event);engine.setPointer(p.x,p.y);});
+  scene.addEventListener('pointerdown',event=>{if(!canMutate()||event.target.closest('button'))return;event.preventDefault();scene.setPointerCapture(event.pointerId);const p=point(event);engine.click(p.x,p.y);update();});
+  scene.addEventListener('pointermove',event=>{if(event.pointerType==='touch'){const p=point(event);engine.setPointer(p.x,p.y);}});
+  const blur=()=>pauseFor('blur'),visibility=()=>{if(document.hidden)blur();};window.addEventListener('blur',blur);document.addEventListener('visibilitychange',visibility);
+  const resize=()=>engine.setScale(canvas.clientWidth/WORLD.width);const observer=new ResizeObserver(resize);observer.observe(canvas);
+  modeButtons();resize();begin();update();renderer.draw(engine,selected);
+  return{
+    engine,pause:()=>pauseFor('settings'),
+    syncAccess(result){if(!canMutate())engine.pause(true);else if(!engine.session&&view==='train')begin();if(engine.session&&!engine.session.running){$('overlay').querySelector('h3').textContent=exitTitle(result);$('overlay').querySelector('p:last-child').textContent=result.message;}update();},
+    setView(value){const previous=view;view=value;if(value!=='train')pauseFor('navigation');else if(previous!=='train'&&canMutate()){if(!engine.session?.running)begin();else if(pauseReason==='navigation'){engine.pause(false);pauseReason=null;}}},
+    update(dt){if(canMutate()&&view==='train')engine.update(dt);},draw(){if(view==='train'){renderer.draw(engine,selected);update();}},
+    destroy(){onSave();observer.disconnect();document.removeEventListener('keydown',keydown);window.removeEventListener('blur',blur);document.removeEventListener('visibilitychange',visibility);},
   };
 }

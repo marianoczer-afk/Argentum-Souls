@@ -1,17 +1,19 @@
-import { awardTraining, createBridge } from './state.js';
+import { awardTraining, createBridge, xpRequired } from './state.js';
 import { openSaveSession } from './save-session.js';
 import { mountTraining } from './training/controller.js';
 import { mountEconomy } from './economy.js';
+import { mountSettings } from './settings.js';
 import { mountArena } from './arena.js';
+const root=document.getElementById('soulsApp');
 const saves = await openSaveSession();
 const state = saves.state;
 const save = () => saves.save();
 const canMutate = () => saves.canMutate;
-const economy = mountEconomy(state, save, canMutate);
+const economy = mountEconomy(state, save, canMutate, root);
 let progressDirty = false;
 let audio = null, sound = true;
 const soundButton = document.createElement('button'); soundButton.className = 'btn'; soundButton.textContent = '🔊 Sonido: sí';
-document.getElementById('stop').insertAdjacentElement('afterend', soundButton);
+root.querySelector('#settingsSound').append(soundButton);
 soundButton.onclick = () => { sound = !sound; soundButton.textContent = sound ? '🔊 Sonido: sí' : '🔇 Sonido: no'; soundButton.blur(); };
 function feedback(kind) {
   if (!sound) return;
@@ -24,18 +26,19 @@ function feedback(kind) {
   } catch { /* Sound is optional; training remains playable. */ }
 }
 const training = mountTraining({
+  root, getProgress: mode=>({level:state.stats[mode],xp:state.xp[mode],required:xpRequired(state.stats[mode])}),
   reward(mode, earned) {
     const xp = earned.xp > 0 ? earned.xp + state.stations[mode] : 0;
     if (!canMutate()) return { xp: 0 };
     awardTraining(state, mode, { ...earned, xp }); save(); progressDirty = true; return { xp };
   }, onSave: save, feedback, canMutate,
 });
-const arena = mountArena(state, save, economy.render, canMutate);
+const arena = mountArena(state, save, economy.render, canMutate, root);
 let view = 'train';
-document.querySelectorAll('.tab').forEach(button => button.onclick = () => {
+root.querySelectorAll('.tab').forEach(button => button.onclick = () => {
   view = button.dataset.view;
-  document.querySelectorAll('.tab').forEach(tab => tab.classList.toggle('active', tab === button));
-  document.querySelectorAll('.view').forEach(section => section.classList.toggle('active', section.id === view));
+  root.querySelectorAll('.tab').forEach(tab => tab.classList.toggle('active', tab === button));
+  root.querySelectorAll('.view').forEach(section => section.classList.toggle('active', section.id === view));
   training.setView(view); if (view === 'arena') arena.render(); if (view === 'shop') economy.render(); button.blur();
 });
 // Fixed simulation steps keep collision windows consistent across frame rates.
@@ -65,7 +68,7 @@ saveNotice.setAttribute('role', 'status');
 const saveText = document.createElement('span');
 const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'btn'; retry.textContent = 'Reintentar';
 retry.onclick = () => { save(); retry.blur(); };
-saveNotice.append(saveText, retry); document.querySelector('header').insertAdjacentElement('afterend', saveNotice);
+saveNotice.append(saveText, retry); root.querySelector('header').insertAdjacentElement('afterend', saveNotice);
 function updateSaveStatus() {
   const result = saves.status;
   saveNotice.dataset.status = result.status;
@@ -85,3 +88,5 @@ saves.subscribe(() => {
 previousSaveStatus = `${saves.status.status}:${saves.status.reason}`; updateSaveStatus();
 window.addEventListener('pagehide', () => saves.close());
 window.addEventListener('pageshow', event => { if (event.persisted) location.reload(); });
+
+mountSettings({root,onOpen:()=>training.pause(),getSaveStatus:()=>saves.status});

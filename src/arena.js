@@ -1,6 +1,6 @@
 // Preserve the playable prototype arena while training receives the first delivery.
-export function mountArena(state, save, renderProgress, canMutate = () => true) {
-  const $ = id => document.getElementById(id);
+export function mountArena(state, save, renderProgress, canMutate = () => true, root = document) {
+  const $ = id => root.querySelector(`#${id}`);
   const enemies = [
     { name: 'Saqueador', icon: '🐀', hp: 85, atk: 8 },
     { name: 'Guardia duende', icon: '👺', hp: 135, atk: 13 },

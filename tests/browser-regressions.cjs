@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict');
 const { setTimeout: delay } = require('node:timers/promises');
+async function ready(p){for(let i=0;i<100;i++){if(await p.evaluate(()=>!!window.ArgentumSoulsBridge))return;await delay(20);}throw Error('Application did not initialize');}
 const KEY = 'argentum_souls_fiel_v2';
 module.exports = async function regressions(browser, url, check) {
   async function context(init) {
@@ -13,7 +14,7 @@ module.exports = async function regressions(browser, url, check) {
   async function page(ctx) {
     const p = await ctx.newPage(); p.auditErrors = []; p.on('pageerror', e => p.auditErrors.push(e.message));
     const time = new Date('2026-10-25T00:00:00Z'); await p.clock.install({ time }); await p.clock.pauseAt(time);
-    await p.goto(url); await p.locator('[data-mode="str"]').waitFor(); return p;
+    await p.goto(url); await ready(p); await p.locator('[data-mode="str"]').waitFor(); return p;
   }
   const session = p => p.evaluate(() => structuredClone(window.__training.session));
   const progress = p => p.evaluate(() => window.ArgentumSoulsBridge.exportProgress());
@@ -31,10 +32,10 @@ module.exports = async function regressions(browser, url, check) {
   }
   async function start(p, mode, touch = false) {
     await p.locator(`[data-mode="${mode}"]`)[touch ? 'tap' : 'click']();
-    await p.locator('#start')[touch ? 'tap' : 'click']();
+    await p.locator('.mode.active')[touch ? 'tap' : 'click']();
   }
   async function screenPoint(p, x, y) {
-    const b = await p.locator('#cv').boundingBox(); return { x: b.x + x * b.width / 900, y: b.y + y * b.height / 506 };
+    const b = await p.locator('#cv').boundingBox(); return { x: b.x + x * b.width / 1200, y: b.y + y * b.height / 720 };
   }
   async function precisionHit(p, touch = false) {
     await start(p, 'acc', touch);
@@ -51,14 +52,14 @@ module.exports = async function regressions(browser, url, check) {
     try {
       const a = await page(ctx), b = await page(ctx);
       await waitStatus(a, 'saved'); await waitStatus(b, 'readonly');
-      assert.equal(await b.locator('#start').isDisabled(), true);
+      assert.equal(await b.locator('#pause').isDisabled(), true);
       const earned = await precisionHit(a); assert.equal(earned.xp.acc, 3);
       await a.locator('#stop').click(); await a.locator('[data-view="shop"]').click();
       await a.locator('[data-buy="sword"]').click();
       const expected = await stored(a); assert.equal(expected.coins, 165); assert.equal(expected.gear.sword, 1);
       const stale = await progress(b);
       // Force handlers as well as testing disabled UI: every mutating path must gate ownership.
-      await b.locator('#start').dispatchEvent('click');
+      await b.locator('#pause').dispatchEvent('click');
       await b.locator('[data-view="shop"]').click();
       await b.locator('[data-buy="sword"]').dispatchEvent('click');
       await b.locator('[data-station="str"]').dispatchEvent('click');
@@ -89,7 +90,7 @@ module.exports = async function regressions(browser, url, check) {
       assert.equal((await precisionHit(p)).xp.acc, 3);
       await p.locator('#stop').click(); assert.equal(await p.locator('#overlay h3').innerText(), 'Progreso solo en memoria');
       assert.doesNotMatch(await p.locator('#overlay').innerText(), /Sesión guardada/);
-      await p.reload(); assert.equal((await progress(p)).xp.acc, 0); assert.deepEqual(p.auditErrors, []);
+      await p.reload(); await ready(p); assert.equal((await progress(p)).xp.acc, 0); assert.deepEqual(p.auditErrors, []);
     } finally { await ctx.close(); }
   });
   await check('no Web Locks: read existing save, play only in memory, never overwrite durable data', async () => {
@@ -100,7 +101,7 @@ module.exports = async function regressions(browser, url, check) {
     try {
       const p = await page(ctx); await waitStatus(p, 'memory'); const before = await stored(p);
       assert.equal((await precisionHit(p)).xp.acc, 5); await p.locator('#stop').click();
-      assert.deepEqual(await stored(p), before); await p.reload(); assert.equal((await progress(p)).xp.acc, 2);
+      assert.deepEqual(await stored(p), before); await p.reload(); await ready(p); assert.equal((await progress(p)).xp.acc, 2);
       assert.deepEqual(p.auditErrors, []);
     } finally { await ctx.close(); }
   });
@@ -129,8 +130,8 @@ module.exports = async function regressions(browser, url, check) {
     try {
       const p = await page(ctx); await start(p, 'def', true);
       const s = await until(p, s => s.objects.length > 0), o = s.objects[0];
-      const distance = Math.hypot(o.x-450,o.y-270), speed = Math.hypot(o.vx,o.vy);
-      const center = await screenPoint(p,450,270), aim = await screenPoint(p,450+(o.x-450)/distance*140,270+(o.y-270)/distance*140);
+      const distance = Math.hypot(o.x-600,o.y-390), speed = Math.hypot(o.vx,o.vy);
+      const center = await screenPoint(p,600,390), aim = await screenPoint(p,600+(o.x-600)/distance*140,390+(o.y-390)/distance*140);
       const cdp = await ctx.newCDPSession(p);
       await cdp.send('Input.dispatchTouchEvent', { type:'touchStart', touchPoints:[center] });
       await cdp.send('Input.dispatchTouchEvent', { type:'touchMove', touchPoints:[aim] });
@@ -169,7 +170,7 @@ module.exports = async function regressions(browser, url, check) {
     const ctx = await context();
     try {
       const p=await page(ctx);await start(p,'dodge',true);
-      const s=await until(p,s=>s.objects[0]?.age>.2);
+      const s=await until(p,s=>s.objects[0]?.age>s.objects[0]?.windup*.65);
       const key={low:'ArrowUp',high:'ArrowDown',left:'ArrowRight',right:'ArrowLeft'}[s.objects[0].kind];
       await p.locator(`.souls-touch [data-key="${key}"]`).tap();assert.equal((await session(p)).hits,1);
       assert.ok((await progress(p)).xp.dodge>0);await p.locator('#stop').tap();assert.deepEqual(p.auditErrors,[]);
