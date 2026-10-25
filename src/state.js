@@ -3,9 +3,9 @@ export const SAVE_KEY = 'argentum_souls_fiel_v2';
 export const ATTRIBUTES = ['str', 'def', 'acc', 'dodge', 'crit'];
 const zeros = () => Object.fromEntries(ATTRIBUTES.map(key => [key, 0]));
 const number = value => Number.isFinite(value) && value >= 0 ? value : 0;
-export function loadState(storage = localStorage) {
+export function loadState(storage) {
   let raw = {};
-  try { raw = JSON.parse(storage.getItem(SAVE_KEY)) || {}; } catch { /* Recover an unreadable save. */ }
+  try { raw = JSON.parse((storage ?? globalThis.localStorage).getItem(SAVE_KEY)) || {}; } catch { /* Recover an unreadable save. */ }
   const values = (keys, source) => Object.fromEntries(keys.map(key => [key, Math.floor(number(source?.[key]))]));
   return {
     coins: Math.floor(number(raw.coins)), wins: Math.floor(number(raw.wins)),
@@ -13,10 +13,6 @@ export function loadState(storage = localStorage) {
     stations: values(ATTRIBUTES, raw.stations),
     gear: values(['sword', 'armor', 'shield', 'bow'], raw.gear),
   };
-}
-export function persist(state, storage = localStorage) {
-  try { storage.setItem(SAVE_KEY, JSON.stringify(state)); return true; }
-  catch { return false; }
 }
 export function xpRequired(level) { return 20 + level * 4; }
 export function awardTraining(state, mode, { xp, gold }) {

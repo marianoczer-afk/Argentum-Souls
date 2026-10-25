@@ -32,7 +32,8 @@ No hay final por tiempo. El ritmo aumenta con límites; los errores rompen el co
 - `src/training/model.js`: reglas, proyectiles, combos, señales, recompensas.
 - `src/training/render.js`: sala, personajes, poses, trayectorias y efectos de canvas.
 - `src/training/controller.js`: teclado, puntero, botones y HUD.
-- `src/state.js`: persistencia y exportación de progreso.
+- `src/state.js`: normalización, experiencia y exportación de progreso.
+- `src/save-session.js`: coordinación de pestañas y única ruta de escritura, con estados de guardado explícitos.
 - `src/economy.js`: equipo, estaciones y atributos.
 - `src/arena.js`: arena del prototipo, series de 3/5 y habilidades. Las mejoras completas de combate pertenecen a la próxima entrega.
 
@@ -43,14 +44,29 @@ No hay final por tiempo. El ritmo aumenta con límites; los errores rompen el co
 ```sh
 npm test
 npm run test:browser
+npm run test:mutation
 ```
 
 Las pruebas de navegador usan Playwright y Chromium. En el entorno de nube está instalado `/usr/bin/chromium`; en otra máquina se puede ejecutar `npx playwright install chromium` o indicar `CHROMIUM_PATH`. El test levanta y cierra su propio servidor en el puerto 8765, usa contextos desechables, reloj controlado y teclado/mouse reales. No modifica el guardado del usuario. Las diez minutos por disciplina del test del motor son tiempo simulado, no diez minutos de ejecución real.
 
+La suite también prueba dos pestañas reales en ambos órdenes de cierre, toma de control con recarga del estado, getter de almacenamiento bloqueado, cuota agotada y reintento. Las pruebas táctiles incluyen cortes con acierto, arrastre del escudo, disparos, esquivas y la secuencia completa de crítico. `npm run test:mutation` rompe la aplicación de poses en una copia temporal y exige que las pruebas unitaria y de Chromium fallen por falta de movimiento corporal.
+
 Las capturas por movimiento y el informe de cada ejecución se guardan en `artifacts/` (ignorado por Git). El test observa la simulación mediante instrumentación exclusiva del navegador de prueba, sin exponer API de depuración en producción ni sustituir los resultados de las acciones.
+
+## Guardado y pestañas
+
+Solo una pestaña por origen puede modificar el guardado de Souls: mantiene un Web Lock exclusivo mientras está abierta. Las demás muestran un aviso y quedan en espera; entrenamiento, compras y combate no pueden modificar el progreso allí. Al cerrar la pestaña activa, la siguiente toma el control y **recarga el último estado guardado antes de permitir acciones**. Los cierres, reintentos y demás escrituras pasan por la misma coordinación.
+
+Si falla el acceso a `localStorage` o el navegador no dispone de Web Locks, se puede jugar **solo en memoria** y se muestra que el progreso no se conservará al cerrar. Sin coordinación no se escribe el guardado existente. Con cuota agotada aparece un error: liberar espacio/habilitar almacenamiento y pulsar **Reintentar**; la sesión solo se confirma guardada cuando la escritura tiene éxito. Un guardado ilegible se protege contra sobrescritura y requiere revisar el almacenamiento y recargar.
+
+La coordinación protege las pestañas que ejecutan esta versión; pestañas antiguas abiertas con el código previo deben recargarse. No coordina perfiles/dispositivos con almacenamiento independiente ni implementa sincronización entre dominios. Al volver mediante la caché de navegación se recarga la página para obtener otra vez el control y el estado vigentes.
+
+Se conserva el guardado síncrono por acierto. Las actualizaciones de atributos se agrupan por frame; la tienda se refresca al abrirla o comprar, en lugar de reconstruirse con cada acierto mientras está oculta.
 
 ## Guardado y alcance
 
 Solo se usa `argentum_souls_fiel_v2`, con compatibilidad para niveles, equipo, monedas, victorias y estaciones existentes. No lee ni escribe el guardado v7 de Argentum Idle. No se modificó `Idle-Czerniak`. Personajes con cinco razas/ocho clases, habilidades por clase y desbloqueos de arenas quedan para entregas posteriores.
 
 Ver [análisis de referencia y plan](docs/REFERENCE.md) y [registro de trabajo y validación](docs/WORKLOG.md).
+
+Ver también [correcciones de la primera auditoría](docs/CORRECTIONS.md).

@@ -1,5 +1,5 @@
 // Preserve the playable prototype arena while training receives the first delivery.
-export function mountArena(state, save, renderProgress) {
+export function mountArena(state, save, renderProgress, canMutate = () => true) {
   const $ = id => document.getElementById(id);
   const enemies = [
     { name: 'Saqueador', icon: '🐀', hp: 85, atk: 8 },
@@ -19,18 +19,19 @@ export function mountArena(state, save, renderProgress) {
     log(`${fight.wave === waves - 1 ? '👑 JEFE · ' : ''}Rival ${fight.wave + 1}/${waves}: ${enemy.name}`);
   }
   function render() {
+    $('fightStart').disabled = !canMutate();
     const hp = fight?.hero ?? maxHP(), enemy = fight?.enemy ?? enemies[0].hp, em = fight?.enemyMax ?? enemies[0].hp;
     $('heroHp').style.width = `${Math.max(0, hp / maxHP() * 100)}%`; $('heroHpText').textContent = `${Math.round(hp)} / ${maxHP()} HP`;
     $('enemyHp').style.width = `${Math.max(0, enemy / em * 100)}%`; $('enemyHpText').textContent = `${Math.round(enemy)} / ${em} HP`;
     $('enemyName').textContent = fight?.over && fight.wave >= waves ? '¡Campeón!' : enemies[Math.min(fight?.wave ?? 0, 4)].name;
     $('arenaStatus').textContent = fight ? (fight.over ? 'Desafío terminado. Podés iniciar otro.' : `Rival ${fight.wave + 1} de ${waves} · Ataques automáticos activos`) : 'Presioná iniciar para comenzar.';
     for (const [id, key, text] of [['skillSlash', 'slash', '🗡️ Doble golpe'], ['skillShield', 'shield', '🛡️ Guardia'], ['skillHeal', 'heal', '💚 Curar']]) {
-      $(id).disabled = !fight || fight.over || fight.cd[key] > 0;
+      $(id).disabled = !canMutate() || !fight || fight.over || fight.cd[key] > 0;
       $(id).textContent = text + (fight?.cd[key] > 0 ? ` (${Math.ceil(fight.cd[key])}s)` : '');
     }
   }
   function damage(amount) {
-    if (!fight || fight.over) return;
+    if (!canMutate() || !fight || fight.over) return;
     animate('heroFigure', 'swing'); animate('enemyFigure', 'struck');
     fight.enemy = Math.max(0, fight.enemy - amount); log(`🗡️ Infligís ${Math.round(amount)} de daño.`);
     if (fight.enemy <= 0) {
@@ -43,11 +44,12 @@ export function mountArena(state, save, renderProgress) {
     render();
   }
   $('fightStart').onclick = () => {
+    if (!canMutate()) return;
     fight = { wave: 0, hero: maxHP(), enemy: 0, enemyMax: 0, clock: 0, enemyClock: 0, cd: { slash: 0, shield: 0, heal: 0 }, guard: 0, over: false };
     $('log').innerHTML = ''; log(`⚔️ ¡Comienza el desafío de ${waves} rivales!`); next(); render();
   };
   function ability(key) {
-    if (!fight || fight.over || fight.cd[key] > 0) return;
+    if (!canMutate() || !fight || fight.over || fight.cd[key] > 0) return;
     if (key === 'slash') { fight.cd.slash = 8; damage((20 + state.stats.str * 2 + state.gear.sword * 4 + state.gear.bow * 4) * 2); log('⚔️ ¡Doble golpe!'); }
     if (key === 'shield') { fight.cd.shield = 10; fight.guard = 4; log('🛡️ Guardia: reducís daño durante 4 s.'); }
     if (key === 'heal') { fight.cd.heal = 20; fight.hero = Math.min(maxHP(), fight.hero + Math.round(maxHP() * .33)); log('💚 Recuperás vida.'); }
@@ -63,7 +65,7 @@ export function mountArena(state, save, renderProgress) {
   });
   $('arena').querySelector('aside .panel').insertAdjacentHTML('beforeend', '<p>4. 🛡️ Veterano de hierro</p><p>5. 🐉 Señor de la arena</p>');
   function update(dt) {
-    if (!fight || fight.over) return;
+    if (!canMutate() || !fight || fight.over) return;
     fight.clock += dt; fight.enemyClock += dt;
     for (const key in fight.cd) fight.cd[key] = Math.max(0, fight.cd[key] - dt);
     fight.guard = Math.max(0, fight.guard - dt);

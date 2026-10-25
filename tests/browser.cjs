@@ -52,6 +52,18 @@ async function check(name, fn) {
       const response = await route.fetch();
       await route.fulfill({ response, body: await response.text() + '\nconst originalStart = Training.prototype.start; Training.prototype.start = function(...args) { const result = originalStart.apply(this,args); window.__training = this; return result; };\n' });
     });
+    await page.route('**/training/render.js', async route => {
+      const response = await route.fetch();
+      await route.fulfill({ response, body: await response.text() + `
+const actualHero = TrainingRenderer.prototype.hero;
+TrainingRenderer.prototype.hero = function(x,y,...args) {
+  const ctx=this.ctx, scale=ctx.scale, rotate=ctx.rotate;
+  const sample={base:{x,y},body:null,sword:null};
+  ctx.scale=function(...a){scale.apply(ctx,a); if(!sample.body){const m=ctx.getTransform();sample.body={x:m.e,y:m.f,scaleY:m.d};}};
+  ctx.rotate=function(a){rotate.call(ctx,a);sample.sword=a;};
+  try{return actualHero.call(this,x,y,...args);}finally{ctx.scale=scale;ctx.rotate=rotate;window.__drawnHero=sample;}
+};` });
+    });
     await page.addInitScript(() => { let seed = 42; Math.random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }; });
     const time = new Date('2026-10-25T00:00:00Z');
     await page.clock.install({ time }); await page.clock.pauseAt(time);
@@ -69,6 +81,8 @@ async function check(name, fn) {
       const after = await capture(page, `${prefix}-strength-swing`);
       assert.notDeepEqual(after, before);
       assert.ok((await inspect(page)).pose?.age > 0);
+      const drawn = await page.evaluate(() => window.__drawnHero);
+      assert.ok(drawn.body && (Math.hypot(drawn.body.x-drawn.base.x,drawn.body.y-drawn.base.y)>3 || Math.abs(drawn.body.scaleY-1)>.1), 'canvas must draw a transformed body, not only change game state or effects');
       if (prefix === 'root') {
         for (let i = 0; i < 16; i++) {
           await page.locator('#cv').screenshot({ path: path.join(artifacts, `strength-motion-${String(i).padStart(2, '0')}.png`) });
@@ -151,8 +165,11 @@ async function check(name, fn) {
     await check(`${prefix}: mobile layout and real touch controls`, async () => {
       await page.setViewportSize({ width: 390, height: 844 });
       await page.locator('[data-mode="str"]').click(); await page.locator('#start').click();
-      await page.locator('.souls-touch [data-key="ArrowUp"]').tap();
-      assert.equal((await inspect(page)).pose.kind, 'high');
+      const s = await until(page, s => s.objects.some(o => o.type === 'apple'));
+      const apple = s.objects.find(o => o.type === 'apple');
+      await page.clock.runFor(Math.ceil((apple.x - 350) / -apple.vx * 1000));
+      await page.locator(`.souls-touch [data-key="${['ArrowUp','ArrowLeft','ArrowDown'][apple.lane]}"]`).tap();
+      assert.equal((await inspect(page)).hits, 1);
       await page.clock.runFor(90);
       await page.screenshot({ path: path.join(artifacts, `${prefix}-mobile.png`), fullPage: true });
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
@@ -161,6 +178,7 @@ async function check(name, fn) {
     assert.deepEqual(errors, [], 'no uncaught browser errors'); assert.deepEqual(failed, [], 'all application resources load');
     await context.close();
   }
+  await require('./browser-regressions.cjs')(browser, url, check);
   await check('GitHub Pages: application and modules load under /Argentum-Souls/', async () => {
     const page = await browser.newPage(), errors = [], failed = [];
     page.on('pageerror', e => errors.push(e.message));

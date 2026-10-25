@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Training, MODES, LANES } from '../src/training/model.js';
 import { heroTransform } from '../src/training/render.js';
-import { loadState, persist, awardTraining, SAVE_KEY } from '../src/state.js';
+import { loadState, awardTraining, SAVE_KEY } from '../src/state.js';
+import { openSaveSession } from '../src/save-session.js';
+const exclusive = { request: (_key, _options, callback) => Promise.resolve().then(() => callback({})) };
 const advance = (engine, seconds) => { for (let i = 0; i < Math.round(seconds * 120); i++) engine.update(1 / 120); };
 const apple = (id, lane, x) => ({ id, type: 'apple', lane, x, y: LANES[lane], vx: -300, vy: 0, age: 0 });
 
@@ -105,16 +107,37 @@ test('poses have different visible paths and settle to rest', () => {
   assert.ok(p('dash').x < -70); assert.notEqual(p('slash').sword, -.5);
   assert.deepEqual(heroTransform(null), { x: 0, y: 0, scaleY: 1, sword: -.5 });
 });
-test('old Souls saves retain levels, coins, gear, wins, and stations; only Souls key is read', () => {
+test('old Souls saves retain levels, coins, gear, wins, and stations; only Souls key is read', async () => {
   const keys = [];
   const state = loadState({ getItem(key) { keys.push(key); return JSON.stringify({ coins: 55, wins: 3, stats: { str: 100 }, gear: { sword: 2 }, stations: { str: 1 } }); } });
   assert.deepEqual(keys, [SAVE_KEY]); assert.equal(state.stats.str, 100); assert.equal(state.coins, 55);
   assert.equal(state.gear.sword, 2); assert.equal(state.stations.str, 1); assert.equal(state.wins, 3);
   awardTraining(state, 'str', { xp: 420, gold: 2 }); assert.equal(state.stats.str, 101); assert.equal(state.coins, 57);
-  let stored; assert.equal(persist(state, { setItem(key, value) { stored = value; } }), true);
+  let stored;
+  const saves = await openSaveSession({ locks: exclusive, getStorage: () => ({ getItem: () => JSON.stringify(state), setItem(key,value) { stored=value; } }) });
+  assert.equal(saves.save().status, 'saved'); saves.close();
   assert.equal(loadState({ getItem() { return stored; } }).stats.str, 101);
 });
-test('bad storage is recoverable and write denial is surfaced', () => {
+test('bad storage is recoverable and write denial is surfaced', async () => {
   const state = loadState({ getItem() { throw new Error('denied'); } }); assert.equal(state.coins, 0);
-  assert.equal(persist(state, { setItem() { throw new Error('quota'); } }), false);
+  const saves = await openSaveSession({ locks: exclusive, getStorage: () => ({ getItem: () => null, setItem() { throw new Error('quota'); } }) });
+  assert.equal(saves.save().status, 'error'); saves.close();
+});
+
+test('hero() actually applies body translation, crouch scale and sword rotation to canvas', async () => {
+  const { TrainingRenderer } = await import('../src/training/render.js');
+  function draw(kind) {
+    const calls = { translate: [], scale: [], rotate: [] };
+    const context = new Proxy({}, { get(_, key) { return (...args) => { if (calls[key]) calls[key].push(args); }; } });
+    const renderer = new TrainingRenderer({ getContext: () => context });
+    renderer.hero(285, 330, kind ? { kind, age: .15, duration: .3, direction: -1 } : null);
+    return { position: calls.translate[0], scale: calls.scale[0], sword: calls.rotate[0][0] };
+  }
+  const rest = draw(null), jump = draw('jump'), low = draw('crouch'), dash = draw('dash'), slash = draw('slash');
+  assert.deepEqual(rest.position, [285, 330]);
+  assert.ok(jump.position[1] < 250, 'rendered jump must move the body upward');
+  assert.ok(low.scale[1] < .7, 'rendered crouch must compress the body');
+  assert.ok(dash.position[0] < 220, 'rendered dash must translate the body');
+  assert.ok(slash.position[0] > 300, 'rendered sword attack must advance the body');
+  assert.notEqual(slash.sword, rest.sword, 'rendered sword must rotate');
 });

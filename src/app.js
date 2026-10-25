@@ -1,18 +1,14 @@
-import { loadState, persist, awardTraining, createBridge } from './state.js';
+import { awardTraining, createBridge } from './state.js';
+import { openSaveSession } from './save-session.js';
 import { mountTraining } from './training/controller.js';
 import { mountEconomy } from './economy.js';
 import { mountArena } from './arena.js';
-const state = loadState();
-let saveError = null;
-function save() {
-  const ok = persist(state);
-  if (!ok && !saveError) {
-    saveError = document.createElement('p'); saveError.className = 'notice'; saveError.setAttribute('role', 'alert');
-    saveError.textContent = 'El navegador no permite guardar. Tu progreso sigue en esta pestaña; habilitá el almacenamiento antes de cerrarla.';
-    document.querySelector('header').insertAdjacentElement('afterend', saveError);
-  } else if (ok && saveError) { saveError.remove(); saveError = null; }
-}
-const economy = mountEconomy(state, save);
+const saves = await openSaveSession();
+const state = saves.state;
+const save = () => saves.save();
+const canMutate = () => saves.canMutate;
+const economy = mountEconomy(state, save, canMutate);
+let progressDirty = false;
 let audio = null, sound = true;
 const soundButton = document.createElement('button'); soundButton.className = 'btn'; soundButton.textContent = '🔊 Sonido: sí';
 document.getElementById('stop').insertAdjacentElement('afterend', soundButton);
@@ -30,16 +26,17 @@ function feedback(kind) {
 const training = mountTraining({
   reward(mode, earned) {
     const xp = earned.xp > 0 ? earned.xp + state.stations[mode] : 0;
-    awardTraining(state, mode, { ...earned, xp }); save(); economy.render(); return { xp };
-  }, onSave: save, feedback,
+    if (!canMutate()) return { xp: 0 };
+    awardTraining(state, mode, { ...earned, xp }); save(); progressDirty = true; return { xp };
+  }, onSave: save, feedback, canMutate,
 });
-const arena = mountArena(state, save, economy.render);
+const arena = mountArena(state, save, economy.render, canMutate);
 let view = 'train';
 document.querySelectorAll('.tab').forEach(button => button.onclick = () => {
   view = button.dataset.view;
   document.querySelectorAll('.tab').forEach(tab => tab.classList.toggle('active', tab === button));
   document.querySelectorAll('.view').forEach(section => section.classList.toggle('active', section.id === view));
-  training.setView(view); if (view === 'arena') arena.render(); button.blur();
+  training.setView(view); if (view === 'arena') arena.render(); if (view === 'shop') economy.render(); button.blur();
 });
 // Fixed simulation steps keep collision windows consistent across frame rates.
 // Clamp gaps and discard hidden-tab time rather than fast-forwarding missed objects.
@@ -53,6 +50,7 @@ function frame(now) {
       training.update(step); if (view === 'arena') arena.update(step);
       accumulator -= step;
     }
+    if (progressDirty) { economy.renderProgress(); progressDirty = false; }
     training.draw();
   } else accumulator = 0;
   requestAnimationFrame(frame);
@@ -60,3 +58,30 @@ function frame(now) {
 document.addEventListener('visibilitychange', () => { previous = performance.now(); accumulator = 0; });
 window.ArgentumSoulsBridge = createBridge(state);
 requestAnimationFrame(frame);
+
+// Keep status and lifecycle outside the game model, ready for a future host adapter.
+const saveNotice = document.createElement('div'); saveNotice.id = 'saveStatus'; saveNotice.className = 'notice';
+saveNotice.setAttribute('role', 'status');
+const saveText = document.createElement('span');
+const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'btn'; retry.textContent = 'Reintentar';
+retry.onclick = () => { save(); retry.blur(); };
+saveNotice.append(saveText, retry); document.querySelector('header').insertAdjacentElement('afterend', saveNotice);
+function updateSaveStatus() {
+  const result = saves.status;
+  saveNotice.dataset.status = result.status;
+  saveNotice.setAttribute('role', result.status === 'saved' ? 'status' : 'alert');
+  saveNotice.hidden = result.status === 'saved'; saveText.textContent = result.message;
+  retry.hidden = result.status !== 'error' || result.reason === 'corrupt';
+  training.syncAccess(result);
+  // Ownership handoff reloads the shared state object; refresh controls and totals.
+  economy.render(); arena.render();
+}
+// Do not rebuild panels on every successful save; only status/ownership transitions.
+let previousSaveStatus = '';
+saves.subscribe(() => {
+  const key = `${saves.status.status}:${saves.status.reason}`;
+  if (key !== previousSaveStatus) { previousSaveStatus = key; updateSaveStatus(); }
+});
+previousSaveStatus = `${saves.status.status}:${saves.status.reason}`; updateSaveStatus();
+window.addEventListener('pagehide', () => saves.close());
+window.addEventListener('pageshow', event => { if (event.persisted) location.reload(); });

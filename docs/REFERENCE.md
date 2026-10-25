@@ -39,3 +39,10 @@ No se observa un contador de segundos que cierre automáticamente esas sesiones.
 4. Pulido e integración explícita con exportación de datos; ningún supuesto de localStorage compartido entre dominios.
 
 Antes de publicar cambios en main se requiere revisión del PR. Esta etapa trabaja sobre `dev/continuous-training`.
+
+
+## Corrección posterior a la primera auditoría
+
+La regla de entrenamiento continuo no cambia. La persistencia ahora usa una única pestaña escritora y recarga el estado al transferir el control; el juego informa explícitamente cuándo el progreso está solo en memoria o requiere un reintento. Se conserva el guardado por acierto.
+
+Las pruebas iniciales de diferencias de PNG no bastaban para detectar un héroe sin animación. Se agregaron comprobaciones de las transformaciones aplicadas realmente al canvas y una prueba de mutación que debe rechazar `heroTransform(null)` en `hero()`. No equivalen a medir latencia física ni a probar teléfonos reales. Detalles y regresiones en [CORRECTIONS.md](CORRECTIONS.md).
