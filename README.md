@@ -1,5 +1,10 @@
 # Argentum Souls
 
+🎮 **[JUGAR ARGENTUM SOULS ONLINE](https://marianoczer-afk.github.io/Argentum-Souls/)** · [Ver código en GitHub](https://github.com/marianoczer-afk/Argentum-Souls)
+
+> **Versión jugable:** Entrega A.1 — entrenamiento mejorado. Los cambios de cada entrega se publican en la misma página; no hace falta descargar archivos ni ZIP.
+
+
 Juego web independiente de entrenamiento y arena inspirado en el ciclo de juego de *Swords and Souls*, con dibujo y sonidos propios. Entrega A: HUD compacto y sala ampliada, cinco entrenamientos de inicio automático y dificultad por combo, controles de teclado/mouse/táctiles y progreso guardado por acierto.
 
 ## Jugar y desarrollar
