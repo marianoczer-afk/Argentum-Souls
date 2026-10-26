@@ -1,90 +1,29 @@
-// Preserve the playable prototype arena while training receives the first delivery.
-export function mountArena(state, save, renderProgress, canMutate = () => true, root = document) {
-  const $ = id => root.querySelector(`#${id}`);
-  const enemies = [
-    { name: 'Saqueador', icon: '🐀', hp: 85, atk: 8 },
-    { name: 'Guardia duende', icon: '👺', hp: 135, atk: 13 },
-    { name: 'Campeón oscuro', icon: '💀', hp: 205, atk: 19 },
-    { name: 'Veterano de hierro', icon: '🛡️', hp: 275, atk: 24 },
-    { name: 'Señor de la arena', icon: '🐉', hp: 380, atk: 30 },
-  ];
-  let fight = null, waves = 3;
-  const maxHP = () => 125 + state.gear.armor * 25 + state.stats.def * 3 + state.stats.dodge;
-  const log = text => { const row = document.createElement('div'); row.textContent = text; $('log').prepend(row); while ($('log').children.length > 80) $('log').lastChild.remove(); };
-  const animate = (id, cls) => { const el = $(id); el.classList.remove('swing', 'struck'); void el.offsetWidth; el.classList.add(cls); setTimeout(() => el.classList.remove(cls), 210); };
-  function next() {
-    const enemy = enemies[fight.wave]; fight.enemyMax = enemy.hp + state.wins * 18;
-    fight.enemy = fight.enemyMax; fight.enemyClock = 0;
-    $('enemyFigure').textContent = enemy.icon;
-    log(`${fight.wave === waves - 1 ? '👑 JEFE · ' : ''}Rival ${fight.wave + 1}/${waves}: ${enemy.name}`);
-  }
-  function render() {
-    $('fightStart').disabled = !canMutate();
-    const hp = fight?.hero ?? maxHP(), enemy = fight?.enemy ?? enemies[0].hp, em = fight?.enemyMax ?? enemies[0].hp;
-    $('heroHp').style.width = `${Math.max(0, hp / maxHP() * 100)}%`; $('heroHpText').textContent = `${Math.round(hp)} / ${maxHP()} HP`;
-    $('enemyHp').style.width = `${Math.max(0, enemy / em * 100)}%`; $('enemyHpText').textContent = `${Math.round(enemy)} / ${em} HP`;
-    $('enemyName').textContent = fight?.over && fight.wave >= waves ? '¡Campeón!' : enemies[Math.min(fight?.wave ?? 0, 4)].name;
-    $('arenaStatus').textContent = fight ? (fight.over ? 'Desafío terminado. Podés iniciar otro.' : `Rival ${fight.wave + 1} de ${waves} · Ataques automáticos activos`) : 'Presioná iniciar para comenzar.';
-    for (const [id, key, text] of [['skillSlash', 'slash', '🗡️ Doble golpe'], ['skillShield', 'shield', '🛡️ Guardia'], ['skillHeal', 'heal', '💚 Curar']]) {
-      $(id).disabled = !canMutate() || !fight || fight.over || fight.cd[key] > 0;
-      $(id).textContent = text + (fight?.cd[key] > 0 ? ` (${Math.ceil(fight.cd[key])}s)` : '');
-    }
-  }
-  function damage(amount) {
-    if (!canMutate() || !fight || fight.over) return;
-    animate('heroFigure', 'swing'); animate('enemyFigure', 'struck');
-    fight.enemy = Math.max(0, fight.enemy - amount); log(`🗡️ Infligís ${Math.round(amount)} de daño.`);
-    if (fight.enemy <= 0) {
-      fight.wave++;
-      if (fight.wave >= waves) {
-        fight.over = true; const gold = (waves === 5 ? 180 : 120) + state.wins * 35;
-        state.wins++; state.coins += gold; log(`🏆 ¡Victoria! +${gold} monedas.`); save(); renderProgress();
-      } else { fight.hero = Math.min(maxHP(), fight.hero + Math.round(maxHP() * .12)); next(); }
-    }
-    render();
-  }
-  $('fightStart').onclick = () => {
-    if (!canMutate()) return;
-    fight = { wave: 0, hero: maxHP(), enemy: 0, enemyMax: 0, clock: 0, enemyClock: 0, cd: { slash: 0, shield: 0, heal: 0 }, guard: 0, over: false };
-    $('log').innerHTML = ''; log(`⚔️ ¡Comienza el desafío de ${waves} rivales!`); next(); render();
-  };
-  function ability(key) {
-    if (!canMutate() || !fight || fight.over || fight.cd[key] > 0) return;
-    if (key === 'slash') { fight.cd.slash = 8; damage((20 + state.stats.str * 2 + state.gear.sword * 4 + state.gear.bow * 4) * 2); log('⚔️ ¡Doble golpe!'); }
-    if (key === 'shield') { fight.cd.shield = 10; fight.guard = 4; log('🛡️ Guardia: reducís daño durante 4 s.'); }
-    if (key === 'heal') { fight.cd.heal = 20; fight.hero = Math.min(maxHP(), fight.hero + Math.round(maxHP() * .33)); log('💚 Recuperás vida.'); }
-    render();
-  }
-  $('skillSlash').onclick = () => ability('slash'); $('skillShield').onclick = () => ability('shield'); $('skillHeal').onclick = () => ability('heal');
-  const choose = document.createElement('div'); choose.className = 'souls-arena-select';
-  choose.innerHTML = '<strong>Rivales por arena:</strong><button class="btn primary" data-waves="3">3 rivales</button><button class="btn" data-waves="5">5 rivales</button>';
-  $('arena').querySelector('h2').insertAdjacentElement('afterend', choose);
-  choose.querySelectorAll('button').forEach(button => button.onclick = () => {
-    waves = Number(button.dataset.waves); fight = null; $('log').innerHTML = '';
-    choose.querySelectorAll('button').forEach(b => b.classList.toggle('primary', b === button)); render();
-  });
-  $('arena').querySelector('aside .panel').insertAdjacentHTML('beforeend', '<p>4. 🛡️ Veterano de hierro</p><p>5. 🐉 Señor de la arena</p>');
-  function update(dt) {
-    if (!canMutate() || !fight || fight.over) return;
-    fight.clock += dt; fight.enemyClock += dt;
-    for (const key in fight.cd) fight.cd[key] = Math.max(0, fight.cd[key] - dt);
-    fight.guard = Math.max(0, fight.guard - dt);
-    if (fight.clock >= 1.5) {
-      fight.clock -= 1.5;
-      const critical = Math.random() < Math.min(.5, .05 + state.stats.crit * .014);
-      damage((12 + state.gear.sword * 5 + state.stats.str * 1.5) * (critical ? 2 : 1));
-    }
-    if (fight.over) return;
-    if (fight.enemyClock >= 2.1) {
-      fight.enemyClock -= 2.1;
-      if (Math.random() < Math.min(.42, state.stats.dodge * .015)) log('💨 ¡Esquivaste el ataque!');
-      else {
-        const amount = Math.max(1, (enemies[fight.wave].atk + state.wins * 2 - state.gear.shield * 3 - state.stats.def * .4) * (fight.guard > 0 ? .38 : 1));
-        fight.hero = Math.max(0, fight.hero - amount); animate('heroFigure', 'struck'); log(`💥 Recibís ${Math.round(amount)} de daño.`);
-        if (fight.hero <= 0) { fight.over = true; log('💀 Derrota. Podés reintentar sin perder progreso.'); }
-      }
-    }
-    render();
-  }
-  render(); return { update, render };
+import {equipmentName} from './progression/equipment.js';
+import {mountStage} from './stage.js';
+import {Combat,ABILITIES} from './combat/model.js';
+import {BattleRenderer} from './combat/render.js';
+import {ARENAS,REGIONS} from './combat/regions.js';
+import {heroStats} from './combat/balance.js';
+import {claimArena} from './progression/arena-progress.js';
+export function mountArena(state,save,renderProgress,canMutate=()=>true,root=document,feedback=()=>{}){
+ const $=id=>root.querySelector('#'+id),renderer=new BattleRenderer($('battleCanvas'));let fight=null,selected=Math.min(100,state.arena.completed+1),view=false,pausedForView=false,lastPhase='',lastMap=-1;
+ function map(){if(lastMap===state.arena.completed)return;lastMap=state.arena.completed;$('arenaRegions').innerHTML=REGIONS.map(region=>`<details ${region.id===Math.min(10,Math.floor(state.arena.completed/10)+1)?'open':''}><summary style="border-color:${region.sky}">${region.id}. ${region.name}</summary><div class="arena-grid">${ARENAS.filter(a=>a.region===region.id).map(a=>`<button class="arena-node ${a.id<=state.arena.completed?'completed':''}" data-arena="${a.id}" ${a.id>state.arena.completed+1?'disabled':''} title="${a.title}">${a.id}${a.regionalBoss?' ♛':''}${a.id<=state.arena.completed?' ✓':''}</button>`).join('')}</div></details>`).join('');$('arenaRegions').querySelectorAll('[data-arena]').forEach(b=>b.onclick=()=>{selected=Number(b.dataset.arena);fight=null;$('arenaMapDialog').close();render();b.blur();});}
+ function start(){if(!canMutate()||selected>Math.min(100,state.arena.completed+1))return;
+  fight=new Combat({state,arena:selected,feedback,onVictory(id){if(!canMutate())return null;const reward=claimArena(state,id);const status=save();renderProgress();lastMap=-1;return reward?{...reward,status}:null;}});lastPhase='';render();}
+ function render(){map();const a=ARENAS[selected-1],h=fight?.heroStats??heroStats(state);$('arenaTitle').textContent=`Arena ${selected} · ${a.title}`;$('arenaSelection').textContent=`${state.arena.completed}/100 completadas · ${state.wins} victorias · ${Math.floor(state.arena.completed/10)} trofeos · ${a.enemies.map(e=>e.name).join(' → ')}`;
+  $('fightStart').disabled=!canMutate()||selected>Math.min(100,state.arena.completed+1)||!!fight&&!fight.over;$('fightStart').textContent=fight?.over?'Reintentar':'Iniciar arena';$('nextArena').hidden=!(fight?.phase==='victory'&&selected<100&&selected<=state.arena.completed);$('arenaMapToggle').textContent='Mapa · '+Math.min(100,state.arena.completed+1)+'/100';
+  $('heroHp').style.width=`${(fight?.hero??h.hp)/h.hp*100}%`;$('heroHpText').textContent=`${Math.ceil(fight?.hero??h.hp)} / ${Math.ceil(h.hp)}`;$('enemyHp').style.width=`${fight?fight.enemy/fight.enemyStats.hp*100:100}%`;$('enemyHpText').textContent=fight?`${Math.ceil(fight.enemy)} / ${fight.enemyStats.hp}`:'Preparado';$('enemyName').textContent=fight?.enemyInfo.name??a.enemies[0].name;
+  $('arenaStatus').textContent=fight?`Rival ${fight.wave+1} de 4 · ${fight.phase==='victory'?'Victoria':fight.phase==='defeat'?'Derrota':fight.phase==='transition'?'Siguiente rival…':fight.paused?'Pausa':'Combate en vivo'}`:'Derrotá cuatro rivales para desbloquear la siguiente arena.';
+  for(const [key,id] of [['slash','skillSlash'],['shield','skillShield'],['heal','skillHeal']]){const cd=fight?.cooldowns[key]??0;$(id).disabled=!canMutate()||!fight||fight.over||fight.paused||fight.phase!=='fight'||cd>0;$(id).textContent=ABILITIES[key].name+(cd>0?` · ${cd.toFixed(1)}s`:'');}
+  $('arenaPause').disabled=!fight||fight.over;$('arenaPause').textContent=fight?.paused?'Continuar':'Pausar';$('arenaResult').hidden=!fight?.over;
+  if(fight?.over){const r=fight.reward; $('arenaResultTitle').textContent=fight.phase==='victory'?'¡VICTORIA!':'Podés volver más fuerte';$('arenaResultText').textContent=fight.phase==='defeat'?'Conservás niveles, equipo, monedas y arenas desbloqueadas.':r?`+${r.gold} monedas${r.equipment?' · '+equipmentName(r.equipment.slot,r.equipment.level):''}${r.trophy?' · Trofeo de región '+r.trophy:''}${r.regionUnlocked?' · Nueva región '+r.regionUnlocked:''} · ${r.status.message}`:'Práctica completada · esta arena ya entregó su recompensa.';}
+  if(fight&&lastPhase!==`${fight.phase}:${fight.wave}:${fight.log[0]}`){lastPhase=`${fight.phase}:${fight.wave}:${fight.log[0]}`;$('log').textContent=fight.log.slice(0,6).join('\n');}
+  renderer.drawBattle(fight,selected);
+ }
+ $('fightStart').onclick=start;$('nextArena').onclick=()=>{selected=Math.min(100,selected+1);fight=null;start();};$('arenaPause').onclick=()=>{if(!canMutate()||!fight)return;fight.paused=!fight.paused;render();$('arenaPause').blur();};
+ for(const [key,id] of [['slash','skillSlash'],['shield','skillShield'],['heal','skillHeal']])$(id).onclick=()=>{if(canMutate())fight?.use(key);$(id).blur();render();};
+ $('arenaMapToggle').onclick=()=>{$('arenaMapDialog').showModal();if(fight&&!fight.over)fight.paused=true;render();};$('closeArenaMap').onclick=()=>$('arenaMapDialog').close();
+ window.addEventListener('blur',()=>{if(fight&&!fight.over){fight.paused=true;render();}});
+ const stage=mountStage({frame:$('battleScene'),canvas:$('battleCanvas'),host:$('battleHost'),height:600});
+ render();return{render,update(dt){if(view&&canMutate()){fight?.syncBuild(state);fight?.update(dt);}},draw(){if(view)render();},pause(){if(fight)fight.paused=true;},setView(active){if(!active&&fight&&!fight.over){pausedForView=!fight.paused;fight.paused=true;}if(active&&pausedForView&&fight){fight.paused=false;pausedForView=false;}view=active;render();}};
 }

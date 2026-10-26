@@ -1,42 +1,23 @@
 import {mountProgressPanel} from './progress-panel.js';
-import { MODES } from './training/model.js';
-import { xpRequired } from './state.js';
-const GEAR = {
-  sword: { name: 'Espada templada', desc: '+5 daño por nivel', base: 35 },
-  armor: { name: 'Armadura reforzada', desc: '+25 vida máxima por nivel', base: 40 },
-  shield: { name: 'Escudo resistente', desc: '+3 defensa por nivel', base: 35 },
-  bow: { name: 'Arco de precisión', desc: '+4 daño especial por nivel', base: 40 },
-};
-export function mountEconomy(state, save, canMutate = () => true, root = document) {
-  const $ = id => root.querySelector(`#${id}`);
-  const renderTrainingProgress=mountProgressPanel(root,state);
-  const station = document.createElement('div'); station.id = 'soulsStations'; $('shopList').insertAdjacentElement('afterend', station);
-  function renderProgress() {
-    renderTrainingProgress();
-    $('coins').textContent = state.coins.toLocaleString('es-AR');
-    $('skills').innerHTML = Object.entries(MODES).map(([key, mode]) => `<div class="skillrow"><div><span>${mode.icon} ${mode.name}</span><b>Nv ${state.stats[key]}</b></div><div class="meter"><div style="width:${state.xp[key] / xpRequired(state.stats[key]) * 100}%"></div></div><small>${state.xp[key]} / ${xpRequired(state.stats[key])} XP</small></div>`).join('');
-    $('arenaStats').innerHTML = `<p>🏆 Victorias: <b>${state.wins}</b></p><p>🪙 Monedas: <b>${state.coins}</b></p>` + Object.entries(MODES).map(([key, mode]) => `<p>${mode.icon} ${mode.name}: ${state.stats[key]}</p>`).join('');
-  }
-  function renderShop() {
-    $('shopList').innerHTML = Object.entries(GEAR).map(([key, item]) => {
-      const level = state.gear[key], cost = item.base * (level + 1);
-      return `<div class="shopitem"><b>${item.name} · Nv ${level}</b><p>${item.desc}</p><button class="btn" data-buy="${key}" ${!canMutate() || state.coins < cost ? 'disabled' : ''}>Mejorar · ${cost} 🪙</button></div>`;
-    }).join('');
-    $('shopList').querySelectorAll('[data-buy]').forEach(button => button.onclick = () => {
-      const key = button.dataset.buy, cost = GEAR[key].base * (state.gear[key] + 1);
-      if (!canMutate() || state.coins < cost) return;
-      state.coins -= cost; state.gear[key]++; save(); render();
-    });
-    station.innerHTML = '<h2>🏋️ Estaciones de entrenamiento</h2><p class="muted">Cada nivel suma experiencia a cada acierto, sin esperar al final de una sesión.</p><div class="shopgrid">' + Object.entries(MODES).map(([key, mode]) => {
-      const level = state.stations[key], cost = 45 * (level + 1) ** 2;
-      return `<div class="shopitem"><b>${mode.icon} ${mode.name} · Estación Nv ${level}</b><p>+${level} XP por acierto</p><button class="btn" data-station="${key}" ${!canMutate() || state.coins < cost ? 'disabled' : ''}>Mejorar · ${cost} 🪙</button></div>`;
-    }).join('') + '</div>';
-    station.querySelectorAll('[data-station]').forEach(button => button.onclick = () => {
-      const key = button.dataset.station, cost = 45 * (state.stations[key] + 1) ** 2;
-      if (!canMutate() || state.coins < cost) return;
-      state.coins -= cost; state.stations[key]++; save(); render();
-    });
-  }
-  function render() { renderProgress(); renderShop(); }
-  render(); return { render, renderProgress };
+import {MODES} from './training/model.js';
+import {xpRequired} from './state.js';
+import {EQUIPMENT,equipmentCost,equipmentName,equipmentDescription,buyEquipment} from './progression/equipment.js';
+export function mountEconomy(state,save,canMutate=()=>true,root=document){
+ const $=id=>root.querySelector('#'+id),renderTrainingProgress=mountProgressPanel(root,state);let selected='sword',signature='';
+ function purchase(slot){if(!buyEquipment(state,slot,canMutate()))return;const status=save();$('purchaseFeedback').textContent=`${equipmentName(slot,state.gear[slot])} equipado · ${status.message}`;render();if(!matchMedia('(prefers-reduced-motion: reduce)').matches)$('equipmentDetail').animate([{background:'#786333'},{background:'#202b36'}],{duration:600});}
+ function renderInventory(){
+  $('inventorySlots').innerHTML=Object.entries(EQUIPMENT).map(([key,item])=>`<button class="equipment-slot ${key===selected?'active':''}" data-slot="${key}" aria-label="${item.name}">${item.icon}<small>${item.name} +${state.gear[key]}</small></button>`).join('');
+  $('inventorySlots').querySelectorAll('[data-slot]').forEach(b=>b.onclick=()=>{selected=b.dataset.slot;renderInventory();b.blur();});
+  const level=state.gear[selected],price=equipmentCost(selected,level);$('equipmentDetail').innerHTML=`<b>${equipmentName(selected,level)}</b><p>${equipmentDescription(selected,level)}</p><small>Próxima: ${equipmentName(selected,level+1)}<br>${equipmentDescription(selected,level+1)}</small><p>${price} monedas${state.coins<price?` · faltan ${price-state.coins}`:''}</p><button class="btn" id="equipBuy" ${!canMutate()||state.coins<price?'disabled':''}>Comprar y equipar</button>`;$('equipBuy').onclick=()=>purchase(selected);
+ }
+ function renderProgress(){renderTrainingProgress();$('coins').textContent=state.coins.toLocaleString('es-AR');
+  const next=JSON.stringify([state.gear,state.coins,canMutate()]);if(signature!==next){signature=next;renderInventory();}
+  $('skills').innerHTML=Object.entries(MODES).map(([key,m])=>`<p>${m.name} · Nv ${state.stats[key]} · ${state.xp[key]}/${xpRequired(state.stats[key])} XP</p>`).join('');
+ }
+ function renderShop(){
+  $('shopList').innerHTML=Object.entries(EQUIPMENT).map(([key,item])=>{const level=state.gear[key],price=equipmentCost(key,level);return`<div class="shopitem"><b>${item.icon} ${equipmentName(key,level)}</b><p>${equipmentDescription(key,level)} → ${equipmentDescription(key,level+1)}</p><button class="btn" data-buy="${key}" ${!canMutate()||state.coins<price?'disabled':''}>Comprar y equipar · ${price} monedas</button></div>`;}).join('');$('shopList').querySelectorAll('[data-buy]').forEach(b=>b.onclick=()=>purchase(b.dataset.buy));
+  $('soulsStations').innerHTML='<h2>Estaciones</h2><div class="shopgrid">'+Object.entries(MODES).map(([key,m])=>{const level=state.stations[key],price=45*(level+1)**2;return`<div class="shopitem"><b>${m.icon} ${m.name} · Estación ${level}</b><p>+${level} XP por acierto</p><button class="btn" data-station="${key}" ${!canMutate()||state.coins<price?'disabled':''}>Mejorar · ${price} monedas</button></div>`;}).join('')+'</div>';
+  $('soulsStations').querySelectorAll('[data-station]').forEach(b=>b.onclick=()=>{const key=b.dataset.station,price=45*(state.stations[key]+1)**2;if(!canMutate()||state.coins<price)return;state.coins-=price;state.stations[key]++;save();render();});
+ }
+ function render(){renderProgress();renderShop();}render();return{render,renderProgress};
 }
