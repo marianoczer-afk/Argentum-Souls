@@ -15,7 +15,7 @@ TrainingRenderer.prototype.dummy=function(x,y,s,m){const c=this.ctx,translate=c.
  const p=await ctx.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));const now=new Date('2026-10-25T00:00:00Z');await p.clock.install({time:now});await p.clock.pauseAt(now);await p.goto(url+'/Argentum-Souls/');await ready(p);
  const s=()=>p.evaluate(()=>structuredClone(window.__training.session)),progress=()=>p.evaluate(()=>window.ArgentumSoulsBridge.exportProgress());
  const mode=async m=>p.locator(`[data-mode="${m}"]`).click();
- const point=async(x,y)=>{const b=await p.locator('#cv').boundingBox();return{x:b.x+x*b.width/1200,y:b.y+y*b.height/720};};
+ const point=async(x,y)=>{const b=await p.locator('#cv').boundingBox(),v=await p.locator('#cv').evaluate(c=>({w:c.width,h:c.height}));return{x:b.x+(x+(v.w-1200)/2)*b.width/v.w,y:b.y+y*b.height/v.h};};
  const tap=async(x,y)=>{const q=await point(x,y);await p.touchscreen.tap(q.x,q.y);};
  const until=async(fn,max=600,step=20)=>{for(let i=0;i<max;i++){const state=await s();if(fn(state))return state;await p.clock.runFor(step);}throw Error('State not reached');};
  const screenshot=async name=>{await p.clock.runFor(20);await p.screenshot({path:path.join(__dirname,'../artifacts',`delivery-a2-${name}.png`),fullPage:true});};
@@ -25,7 +25,7 @@ TrainingRenderer.prototype.dummy=function(x,y,s,m){const c=this.ctx,translate=c.
   await p.setViewportSize({width:390,height:844});const kinds=new Set();
   for(let i=0;i<12&&kinds.size<3;i++){
    await mode('dodge');const state=await until(s=>s.objects[0]?.age>=s.objects[0]?.windup+.01),cue=state.objects[0];kinds.add(cue.kind);
-   assert.equal(await p.locator('#cueBanner').getAttribute('data-tone'),'perfect');
+   assert.equal(await p.locator('#cueBanner').isVisible(),false);
    const before=await p.evaluate(()=>scrollY);await tap(...(cue.kind==='low'?[550,320]:cue.kind==='high'?[550,620]:[370,465]));assert.equal((await s()).objects[0].outcome,'perfect');assert.ok((await s()).pose);
    await until(s=>s.hits===1);assert.equal((await s()).perfect,1);assert.equal((await s()).misses,0);assert.equal(await p.evaluate(()=>scrollY),before);
   }
@@ -68,9 +68,9 @@ TrainingRenderer.prototype.dummy=function(x,y,s,m){const c=this.ctx,translate=c.
   for(const kind of ['high','mid','low']){
    await mode('dodge');await fixture(()=>{window.__training.session.spawn=999;window.__training.session.objects=[];});
    await p.evaluate(kind=>{window.__training.session.objects=[{id:1,type:'cue',kind,age:.9,windup:1,resolved:false}];},kind);await p.clock.runFor(20);assert.equal((await s()).objects[0].age<.94,true);
-   const beforeWhite=await p.evaluate(()=>{const a=document.getElementById('cv').getContext('2d').getImageData(593,389,3,3).data;for(let i=0;i<a.length;i+=4)if(a[i]>240&&a[i+1]>240&&a[i+2]>240)return true;return false;});assert.equal(beforeWhite,false);
-   await p.clock.runFor(100);assert.equal(await p.locator('#cueBanner').getAttribute('data-tone'),'perfect');frames[kind]=await p.evaluate(()=>window.__dummyFrame);
-   const white=await p.evaluate(()=>{const d=document.getElementById('cv').getContext('2d').getImageData(593,389,3,3).data;for(let i=0;i<d.length;i+=4)if(d[i]>240&&d[i+1]>240&&d[i+2]>240)return true;return false;});assert.equal(white,true);
+   const beforeWhite=await p.evaluate(()=>{const a=document.getElementById('cv').getContext('2d').getImageData(593+(document.getElementById('cv').width-1200)/2,389,3,3).data;for(let i=0;i<a.length;i+=4)if(a[i]>240&&a[i+1]>240&&a[i+2]>240)return true;return false;});assert.equal(beforeWhite,false);
+   await p.clock.runFor(100);assert.equal(await p.locator('#cueBanner').isVisible(),false);frames[kind]=await p.evaluate(()=>window.__dummyFrame);
+   const white=await p.evaluate(()=>{const d=document.getElementById('cv').getContext('2d').getImageData(593+(document.getElementById('cv').width-1200)/2,389,3,3).data;for(let i=0;i<d.length;i+=4)if(d[i]>240&&d[i+1]>240&&d[i+2]>240)return true;return false;});assert.equal(white,true);
    await p.keyboard.press({high:'ArrowDown',mid:'ArrowLeft',low:'ArrowUp'}[kind]);assert.equal((await s()).objects[0].perfect,true);await p.clock.runFor(140);assert.equal((await s()).perfect,1);
   }
   assert.notDeepEqual(frames.high.calls,frames.mid.calls);assert.notDeepEqual(frames.mid.calls,frames.low.calls);await screenshot('dodge');
@@ -93,8 +93,8 @@ TrainingRenderer.prototype.dummy=function(x,y,s,m){const c=this.ctx,translate=c.
    await dp.goto(url+'/Argentum-Souls/');await ready(dp);
    for(const [width,height] of [[1024,600],[1280,720],[1366,768],[1440,900],[1920,1080]]){
     await dp.setViewportSize({width,height});await dp.locator('[data-mode="str"]').click();await dp.waitForTimeout(60);
-    const frame=await dp.locator('#scene').boundingBox(),canvas=await dp.locator('#cv').boundingBox(),panel=await dp.locator('.training-stats').boundingBox();assert.ok(frame.y>=0&&frame.y+frame.height<=height+1,`${width}x${height}: scene fits`);assert.ok(panel.y+panel.height<=height+1);assert.ok(Math.abs(canvas.width/canvas.height-5/3)<.01);assert.equal(await dp.evaluate(()=>document.documentElement.scrollHeight<=innerHeight),true);
-    for(const id of ['combo','soulsMission','sessionXp','pause','stop','touchControls']){const r=await dp.locator('#'+id).boundingBox();assert.ok(r&&r.y+r.height<=height+1);}
+    const frame=await dp.locator('#scene').boundingBox(),canvas=await dp.locator('#cv').boundingBox(),panel=await dp.locator('.training-stats').boundingBox();assert.ok(frame.y>=0&&frame.y+frame.height<=height+1,`${width}x${height}: scene fits`);assert.ok(panel.y+panel.height<=height+1);assert.ok(Math.abs(canvas.width/canvas.height-(await dp.locator('#cv').evaluate(c=>c.width/c.height)))<.01);assert.equal(await dp.evaluate(()=>document.documentElement.scrollHeight<=innerHeight),true);
+    for(const id of ['combo','soulsMission','sessionXp','pause','stop']){const r=await dp.locator('#'+id).boundingBox();assert.ok(r&&r.y+r.height<=height+1);}
    }
    await dp.setViewportSize({width:1366,height:768});await dp.locator('[data-mode="str"]').click();await dp.waitForTimeout(850);await dp.screenshot({path:path.join(__dirname,'../artifacts/delivery-a2-desktop.png'),fullPage:true});
   }finally{await desktop.close();}

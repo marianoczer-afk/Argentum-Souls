@@ -10,7 +10,7 @@ const apple = (id, lane, x) => ({ id, type: 'apple', lane, x, y: LANES[lane], vx
 
 test('all five disciplines remain active after ten minutes, with bounded difficulty and objects', () => {
   for (const mode of Object.keys(MODES)) {
-    const engine = new Training({ random: () => .6 }); engine.start(mode); advance(engine, 600);
+    const engine = new Training({ random: () => .6 }); engine.start(mode);for(let t=0;t<600*120;t++){if(engine.session.recovery)engine.resumeRecovery();engine.update(1/120);}
     assert.equal(engine.session.running, true, mode);
     assert.ok(engine.session.time > 599, mode);
     assert.ok(engine.difficulty >= 0 && engine.difficulty <= 1, mode);
@@ -100,7 +100,7 @@ test('combos reward more XP and a mission grants its bonus once without ending t
   for (let i = 0; i < 60; i++) engine.good(true, 300, 280);
   const hits = rewards.filter(r=>r.kind==='hit');
   assert.ok(hits[59].xp > hits[0].xp);
-  assert.equal(rewards.filter(r => r.gold === 15).length, 1);
+  assert.equal(rewards.filter(r=>r.mission?.index===1).length, 1);
   assert.equal(engine.session.running, true);
 });
 test('poses have different visible paths and settle to rest', () => {
@@ -114,11 +114,11 @@ test('old Souls saves retain levels, coins, gear, wins, and stations; only Souls
   const state = loadState({ getItem(key) { keys.push(key); return JSON.stringify({ coins: 55, wins: 3, stats: { str: 100 }, gear: { sword: 2 }, stations: { str: 1 } }); } });
   assert.deepEqual(keys, [SAVE_KEY]); assert.equal(state.stats.str, 100); assert.equal(state.coins, 55);
   assert.equal(state.gear.sword, 2); assert.equal(state.stations.str, 1); assert.equal(state.wins, 3);
-  awardTraining(state, 'str', { xp: 420, gold: 2 }); assert.equal(state.stats.str, 101); assert.equal(state.coins, 57);
+  awardTraining(state, 'str', { xp: 420, gold: 2 }); assert.equal(state.stats.str,100);assert.equal(state.xp.str,420);assert.equal(state.coins,57);
   let stored;
   const saves = await openSaveSession({ locks: exclusive, getStorage: () => ({ getItem: () => JSON.stringify(state), setItem(key,value) { stored=value; } }) });
   assert.equal(saves.save().status, 'saved'); saves.close();
-  assert.equal(loadState({ getItem() { return stored; } }).stats.str, 101);
+  assert.equal(loadState({ getItem() { return stored; } }).stats.str,100);
 });
 test('bad storage is recoverable and write denial is surfaced', async () => {
   const state = loadState({ getItem() { throw new Error('denied'); } }); assert.equal(state.coins, 0);

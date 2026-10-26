@@ -1,89 +1,62 @@
 # Argentum Souls
 
-🎮 **[JUGAR ARGENTUM SOULS ONLINE](https://marianoczer-afk.github.io/Argentum-Souls/)** · [Ver código en GitHub](https://github.com/marianoczer-afk/Argentum-Souls)
+🎮 **[JUGAR ARGENTUM SOULS ONLINE](https://marianoczer-afk.github.io/Argentum-Souls/)**
 
-> **Versión de esta entrega:** A.2 — ritmo, controles y animaciones de entrenamiento. La página online se actualiza después de fusionar y publicar. Los cambios de cada entrega se publican en la misma página; no hace falta descargar archivos ni ZIP.
+**A.3 + Cien Arenas.** El HTML y la build de esta rama se publican en ese mismo enlace después de revisar y fusionar el PR. No hace falta descargar ZIP.
 
+Juego estático con gráficos vectoriales y sonidos propios: cinco entrenamientos continuos, equipamiento, misiones persistentes y 100 arenas en diez regiones. Cada arena enfrenta cuatro rivales, uno por uno, con jefe final, ataques automáticos y habilidades manuales. La dificultad depende de la arena y sus enemigos, sin aumentar por las victorias anteriores.
 
-Juego web independiente de entrenamiento y arena inspirado en el ciclo de juego de *Swords and Souls*, con dibujo y sonidos propios. Entrega A: HUD compacto y sala ampliada, cinco entrenamientos de inicio automático y dificultad por combo, controles de teclado/mouse/táctiles y progreso guardado por acierto.
+## Jugar
 
-## Jugar y desarrollar
+- **Fuerza:** ↑/W alto, →/D medio, ↓/S bajo; ←/A recoge la estrella opcional. Un corte activo y un cambio rápido en espera. Golpes al aire y estrellas perdidas son neutrales.
+- **Defensa:** apuntar el escudo curvo con mouse o dedo; solo bloquea contacto real desde el frente.
+- **Precisión:** clic/toque sobre el blanco; centro Perfecto, anillo Bien, exterior Fallo.
+- **Esquiva:** ↑ salta la patada, ↓ agacha el cabezazo, ← retrocede ante el brazo. Las poses del muñeco anticipan el ataque; el círculo blanco coincide con Perfecto. Una acción incorrecta se anima antes del impacto.
+- **Crítico:** rojo = esperar, dorado = saltar, aviso aéreo = segundo toque. Espacio/Enter/clic/toque. Un golpe válido fuera de Perfecto da Bien.
 
-GitHub Pages sirve la rama **main**, carpeta **/ (root)**. El `index.html` raíz carga módulos estáticos desde `src/`, con rutas relativas compatibles con `/Argentum-Souls/`. No necesita backend ni servicios externos.
+En móviles se juega sobre zonas de la escena, sin fila de botones debajo. `?` muestra la ayuda. Tres fallos consecutivos detienen amenazas y esperan una tecla o toque para continuar, sin perder XP. Las misiones avanzan continuamente; el mensaje de premio dura unos dos segundos y la siguiente misión sigue contando aciertos.
+
+El botón **⛶** amplía entrenamientos o arenas. Intenta Fullscreen API y orientación horizontal; si el navegador no lo permite usa una expansión visual con salida visible. El juego también funciona en vertical. Equipo y atributos se convierten en desplegables compactos en móvil.
+
+En combate decidís cuándo usar Doble golpe, Guardia o Curar. Se ven preparación, desplazamiento, contacto, retroceso, derrota y daño flotante. Completar los cuatro rivales desbloquea la siguiente arena. Perder o abandonar el intento conserva el progreso. Las primeras victorias entregan monedas; los diez jefes de región dan una mejora de equipo y un trofeo. Repetir una arena es práctica sin repetir el premio.
+
+El inventario de la izquierda compara el objeto actual con la próxima calidad y permite **Comprar y equipar**. Se aplica al personaje inmediatamente; en un combate en curso se actualiza el poder sin borrar el daño ya recibido. Los cinco atributos son independientes y no tienen límite de nivel. No hay un nivel global ni requisitos rígidos de atributo para entrar a las arenas.
+
+## Desarrollo y pruebas
 
 ```sh
-npm ci
+npm ci --ignore-scripts
 npm run build
 npm start
-```
-
-Abrir el servidor local en un navegador. La raíz y `/src/` sirven la misma aplicación. Python 3 sirve los archivos; Node.js 20+ se usa para generar el HTML raíz y ejecutar pruebas. No abrir el HTML mediante `file://`: los módulos necesitan HTTP.
-
-Editar en `src/` y ejecutar `npm run build`. El build genera el HTML raíz con metadatos y el artefacto `dist/`; no incrusta JavaScript en un HTML gigante ni necesita empaquetador. No editar el HTML raíz por separado.
-
-## Entrenamiento
-
-- **Fuerza:** ↑/W alto, →/D medio, ↓/S bajo; ←/A recoge la estrella detrás. Una trayectoria corta varias manzanas próximas. Se pueden encadenar pulsaciones sin recarga.
-- **Defensa:** mover mouse o dedo para orientar el escudo al impacto.
-- **Precisión:** apuntar y hacer clic/toque; acertar al centro da perfecto.
-- **Esquiva:** seguir la dirección indicada ante el ataque del muñeco.
-- **Crítico:** exclamación roja = esperar; dorada = saltar; estrella aérea = segundo toque. Espacio, Enter, clic o toque.
-
-Las disciplinas arrancan al seleccionarlas, sin botón Empezar. No hay final por tiempo, combo ni misión. El ritmo aumenta según el combo con límites y vuelve suavemente al inicio tras fallar; golpear al aire en Fuerza no penaliza. Los errores rompen el combo. Cada acierto da experiencia y los combos la multiplican. La misión de sesión entrega +15 monedas una vez, sin cortar el entrenamiento. Las estaciones suman XP por acierto. «Salir y guardar» conserva lo ganado; también se guarda durante los aciertos. Perder foco o cambiar a arena/tienda pausa el entrenamiento; al volver desde arena/tienda se reanuda, mientras que una pausa por foco, configuración o manual exige «Continuar».
-
-## Código
-
-- `src/app.js`: composición y bucle de simulación a 120 pasos/s con dibujo por frame.
-- `src/training/model.js`: reglas, proyectiles, combos, señales, recompensas.
-- `src/training/render.js`: sala, personajes, poses, trayectorias y efectos de canvas.
-- `src/training/controller.js`: teclado, puntero, botones y HUD.
-- `src/state.js`: normalización, experiencia y exportación de progreso.
-- `src/save-session.js`: coordinación de pestañas y única ruta de escritura, con estados de guardado explícitos.
-- `src/economy.js`: equipo, estaciones y atributos.
-- `src/arena.js`: arena del prototipo, series de 3/5 y habilidades. Las mejoras completas de combate pertenecen a la próxima entrega.
-
-`window.ArgentumSoulsBridge.exportProgress()` devuelve una copia de los datos con esquema `argentum-souls-progress-v1`. Es una interfaz explícita de exportación, no sincronización entre dominios.
-
-## Pruebas
-
-```sh
 npm test
 npm run test:browser
+npm run test:balance
 npm run test:mutation
 ```
 
-Las pruebas de navegador usan Playwright y Chromium. En el entorno de nube está instalado `/usr/bin/chromium`; en otra máquina se puede ejecutar `npx playwright install chromium` o indicar `CHROMIUM_PATH`. El test levanta y cierra su propio servidor en un puerto libre, usa contextos desechables, reloj controlado y teclado/mouse reales. No modifica el guardado del usuario. Las diez minutos por disciplina del test del motor son tiempo simulado, no diez minutos de ejecución real.
+Abrir `http://127.0.0.1:8000/`. Node.js 20+ compila y prueba; Python 3 sirve archivos. Chromium se obtiene con `npx playwright install chromium`, o se usa `/usr/bin/chromium` / `CHROMIUM_PATH`. No abrir con `file://`: los módulos necesitan HTTP.
 
-La suite también prueba dos pestañas reales en ambos órdenes de cierre, toma de control con recarga del estado, getter de almacenamiento bloqueado, cuota agotada y reintento. Las pruebas táctiles incluyen cortes con acierto, arrastre del escudo, disparos, esquivas y la secuencia completa de crítico. `npm run test:mutation` rompe la aplicación de poses en una copia temporal y exige que las pruebas unitaria y de Chromium fallen por falta de movimiento corporal.
+Editar `src/`; `npm run build` genera el nuevo `index.html` raíz y `dist/` para GitHub Pages, con rutas relativas y versiones por contenido en CSS y todo el grafo de módulos. La entrada `/src/` sirve para desarrollo; publicar la raíz compilada. GitHub Actions prueba y prepara el artefacto Pages; este trabajo no fusiona ni publica automáticamente.
 
-Las capturas por movimiento y el informe de cada ejecución se guardan en `artifacts/` (ignorado por Git). El test observa la simulación mediante instrumentación exclusiva del navegador de prueba, sin exponer API de depuración en producción ni sustituir los resultados de las acciones.
+## Guardados
 
-## Guardado y pestañas
+Se conserva **`argentum_souls_fiel_v2`**, incluidos niveles, XP, monedas, estaciones, equipo, victorias y récords. La migración agrega casco, progreso de misiones y arenas sin reducir los niveles anteriores. Las victorias del prototipo se conservan como historial; el mapa nuevo empieza en la arena 1 porque antes no existían sus identificadores.
 
-Solo una pestaña por origen puede modificar el guardado de Souls: mantiene un Web Lock exclusivo mientras está abierta. Las demás muestran un aviso y quedan en espera; entrenamiento, compras y combate no pueden modificar el progreso allí. Al cerrar la pestaña activa, la siguiente toma el control y **recarga el último estado guardado antes de permitir acciones**. Los cierres, reintentos y demás escrituras pasan por la misma coordinación.
+La XP necesaria para subir se vuelve gradual a largo plazo; no se recalculan niveles ya ganados ni se resta XP existente. [Fórmulas, simulaciones y estimaciones](docs/ARENA_BALANCE.md). El objetivo orientativo de meses no es un tiempo mínimo obligatorio.
 
-Si falla el acceso a `localStorage` o el navegador no dispone de Web Locks, se puede jugar **solo en memoria** y se muestra que el progreso no se conservará al cerrar. Sin coordinación no se escribe el guardado existente. Con cuota agotada aparece un error: liberar espacio/habilitar almacenamiento y pulsar **Reintentar**; la sesión solo se confirma guardada cuando la escritura tiene éxito. Un guardado ilegible se protege contra sobrescritura y requiere revisar el almacenamiento y recargar.
+Solo una pestaña puede modificar el progreso: mantiene un Web Lock exclusivo; las demás esperan y recargan el guardado al adquirirlo. Todos los premios y compras pasan por ese escritor. Misiones e hitos se guardan con su recompensa en el mismo snapshot. Si falla una escritura por cuota, el avance permanece en memoria y se puede reintentar. Si el almacenamiento o la coordinación están bloqueados, se avisa que la sesión no se conservará. Los datos ilegibles no se sobrescriben.
 
-La coordinación protege las pestañas que ejecutan esta versión; pestañas antiguas abiertas con el código previo deben recargarse. No coordina perfiles/dispositivos con almacenamiento independiente ni implementa sincronización entre dominios. Al volver mediante la caché de navegación se recarga la página para obtener otra vez el control y el estado vigentes.
+`window.ArgentumSoulsBridge.exportProgress()` sigue devolviendo una copia del progreso con esquema `argentum-souls-progress-v1`, ampliado con campos aditivos. No se lee ni escribe el guardado v7 de Argentum Idle ni se modifica `Idle-Czerniak`. Personajes, razas y clases específicas siguen pendientes.
 
-Se conserva el guardado síncrono por acierto. Las actualizaciones de atributos se agrupan por frame; la tienda se refresca al abrirla o comprar, en lugar de reconstruirse con cada acierto mientras está oculta.
+## Módulos
 
-## Guardado y alcance
+- `src/training/`: simulación, entrada, render, geometría compartida y ritmo por combo.
+- `src/combat/`: cien arenas/regiones, fórmulas, combate en vivo y render propio.
+- `src/progression/`: misiones persistentes, equipo y premios/desbloqueos de arena.
+- `src/arena.js`, `src/economy.js`: controladores de mapa, batalla, inventario y tienda.
+- `src/stage.js`: coordenadas, tamaño de escenario y pantalla completa.
+- `src/state.js`, `src/save-session.js`: migración, XP, exportación y escritura exclusiva.
 
-Solo se usa `argentum_souls_fiel_v2`, con compatibilidad para niveles, equipo, monedas, victorias y estaciones existentes. No lee ni escribe el guardado v7 de Argentum Idle. No se modificó `Idle-Czerniak`. Personajes con cinco razas/ocho clases, habilidades por clase y desbloqueos de arenas quedan para entregas posteriores.
+[Entrega A.3, capturas y limitaciones](docs/DELIVERY_A3.md) · [Balance de entrenamientos](docs/BALANCE_A3.md) · [Balance de las cien arenas](docs/ARENA_BALANCE.md).
 
-Ver [análisis de referencia y plan](docs/REFERENCE.md) y [registro de trabajo y validación](docs/WORKLOG.md).
-
-Ver también [correcciones de la primera auditoría](docs/CORRECTIONS.md).
-
-La versión/publicación automática y la configuración de Pages necesaria se detallan en [Entrega A](docs/DELIVERY_A.md). Personajes, curva definitiva de XP y arenas nuevas quedan para B/C.
-
-## Entrega A.1
-
-Pulido de los cinco entrenamientos: ráfagas y dificultad por combo, premios persistentes de hitos, misión con XP, anticipación de Esquiva, lectura de amagues de Crítico y panel compacto de atributos. [Cambios y validación](docs/DELIVERY_A1.md) · [Parámetros y simulaciones](docs/BALANCE_A1.md).
-
-`npm run test:balance` reproduce los 35 escenarios de balance. El build de publicación está en `dist/`; abrir mediante HTTP, no `file://`. Las arenas y los personajes siguen pendientes para B/C.
-
-## Entrega A.2
-
-Ritmo variable, espada exclusiva y estrella opcional, escudo con colisión compartida con el dibujo, blancos con perspectiva, tres evasiones y controles sobre la escena en móvil. [Cambios, capturas y límites](docs/DELIVERY_A2.md) · [Mediciones de balance](docs/BALANCE_A2.md). No se generan ZIP: la publicación mantiene el enlace de juego de arriba.
+[Referencia analizada](docs/REFERENCE.md) · [Registro de trabajo](docs/WORKLOG.md) · [Auditoría inicial](docs/CORRECTIONS.md). Los informes anteriores se conservan como historial; la especificación actual está en A.3. Capturas transitorias y resultados JSON quedan en `artifacts/`, ignorado por Git.

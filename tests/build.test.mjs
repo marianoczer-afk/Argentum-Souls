@@ -13,7 +13,7 @@ test('publication build increments version by CI run and embeds its exact commit
   let first;
   for(const run of [37,38]){
    const sha=String(run%10).repeat(40);const processResult=spawnSync(process.execPath,['scripts/build.mjs'],{cwd:dir,encoding:'utf8',env:{...process.env,GITHUB_SHA:sha,GITHUB_RUN_NUMBER:String(run)}});
-   assert.equal(processResult.status,0,processResult.stderr);const info=await metadata();assert.equal(info.version,`0.3.${run}`);assert.equal(info.commit,sha);assert.equal(info.dirty,false);
+   assert.equal(processResult.status,0,processResult.stderr);const info=await metadata();assert.equal(info.version,`0.4.${run}`);assert.equal(info.commit,sha);assert.equal(info.dirty,false);
    if(!first)first=info;else assert.equal(info.build,first.build,'same sources retain their content identifier');
    const html=await readFile(path.join(dir,'dist/index.html'),'utf8');
    const map=JSON.parse(html.match(/<script type="importmap">(.*?)<\/script>/)[1]);

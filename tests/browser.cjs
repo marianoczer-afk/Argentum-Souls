@@ -15,14 +15,11 @@ let server, browser, pagesRoot;
 async function ready(page){for(let i=0;i<100;i++){if(await page.evaluate(()=>!!window.ArgentumSoulsBridge))return;await delay(20);}throw Error('Application did not initialize');}
 async function inspect(page) { return page.evaluate(() => structuredClone(window.__training.session)); }
 async function until(page, condition, max = 120, step = 50) {
-  for (let i = 0; i < max; i++) { const s = await inspect(page); if (condition(s)) return s; await page.clock.runFor(step); }
+  for (let i = 0; i < max; i++) { const s = await inspect(page); if(condition(s))return s;if(s.recovery)await page.keyboard.press('Enter');await page.clock.runFor(step); }
   throw new Error('Training did not reach expected state');
 }
-async function canvasPoint(page, x, y, click = true) {
-  const b = await page.locator('#cv').boundingBox();
-  if (click) await page.mouse.click(b.x + x * b.width / 1200, b.y + y * b.height / 720);
-  else await page.mouse.move(b.x + x * b.width / 1200, b.y + y * b.height / 720);
-}
+async function screenPoint(page,x,y){const b=await page.locator('#cv').boundingBox(),v=await page.locator('#cv').evaluate(c=>({w:c.width,h:c.height}));return{x:b.x+(x+(v.w-1200)/2)*b.width/v.w,y:b.y+y*b.height/v.h};}
+async function canvasPoint(page,x,y,click=true){const p=await screenPoint(page,x,y);if(click)await page.mouse.click(p.x,p.y);else await page.mouse.move(p.x,p.y);}
 async function capture(page, name) { return page.locator('#cv').screenshot({ path: path.join(artifacts, `${name}.png`) }); }
 async function check(name, fn) {
   activeCheck=name;const t = performance.now(); await fn();
@@ -59,8 +56,8 @@ async function check(name, fn) {
 const actualHero = TrainingRenderer.prototype.hero;
 TrainingRenderer.prototype.hero = function(x,y,...args) {
   const ctx=this.ctx, scale=ctx.scale, rotate=ctx.rotate;
-  const sample={base:{x,y},body:null,sword:null};
-  ctx.scale=function(...a){scale.apply(ctx,a); if(!sample.body){const m=ctx.getTransform();sample.body={x:m.e,y:m.f,scaleY:m.d};}};
+  const offset=(this.canvas.width-1200)/2,sample={base:{x,y},body:null,sword:null};
+  ctx.scale=function(...a){scale.apply(ctx,a); if(!sample.body){const m=ctx.getTransform();sample.body={x:m.e-offset,y:m.f,scaleY:m.d};}};
   ctx.rotate=function(a){rotate.call(ctx,a);sample.sword=a;};
   try{return actualHero.call(this,x,y,...args);}finally{ctx.scale=scale;ctx.rotate=rotate;window.__drawnHero=sample;}
 };` });
@@ -94,7 +91,7 @@ TrainingRenderer.prototype.hero = function(x,y,...args) {
       assert.equal((await inspect(page)).pose, null);
     });
     await check(`${prefix}: continuous past 30 seconds; pause, manual exit and reload preserve XP`, async () => {
-      await page.clock.runFor(35000);
+      for(let i=0;i<100&&(await inspect(page)).time<35.1;i++){if((await inspect(page)).recovery)await page.keyboard.press('Enter');await page.clock.runFor(500);}
       const s = await inspect(page); assert.ok(s.time > 35); assert.equal(s.running, true);
       assert.equal(await page.locator('#pause').isDisabled(), false);
       await page.locator('#pause').click(); const t = (await inspect(page)).time;
@@ -147,21 +144,11 @@ TrainingRenderer.prototype.hero = function(x,y,...args) {
       await page.clock.runFor(100); await capture(page, `${prefix}-critical-strike`);
       await page.locator('#stop').click();
     });
-    await check(`${prefix}: view switch pauses training; arena abilities and 3/5 selection remain playable`, async () => {
-      await page.locator('.mode.active').click(); await page.clock.runFor(500);
-      await page.locator('[data-view="arena"]').click(); assert.equal((await inspect(page)).paused, true);
-      await page.locator('[data-waves="5"]').click(); await page.locator('#fightStart').click();
-      await page.locator('#skillSlash').click(); assert.equal(await page.locator('#skillSlash').isDisabled(), true);
-      assert.match(await page.locator('#log').innerText(), /Infligís/);
-      await page.locator('#skillShield').click(); await page.locator('#skillHeal').click();
-      await page.clock.runFor(2000); assert.match(await page.locator('#arenaStatus').innerText(), /de 5/);
-      await page.locator('[data-waves="3"]').click(); await page.locator('#fightStart').click();
-      assert.match(await page.locator('#arenaStatus').innerText(), /de 3/);
-      await page.locator('[data-view="shop"]').click();
-      assert.equal(await page.locator('[data-buy]').count(), 4); assert.equal(await page.locator('[data-station]').count(), 5);
-      await page.locator('[data-view="train"]').click();
-      assert.equal((await inspect(page)).paused, false);
-      await page.locator('#stop').click();
+    await check(`${prefix}: view switch pauses training; new four-rival arena and five-slot shop remain playable`,async()=>{
+      await page.locator('.mode.active').click();await page.locator('[data-view="arena"]').click();assert.equal((await inspect(page)).paused,true);assert.equal(await page.locator('[data-waves]').count(),0);
+      await page.locator('#fightStart').click();await page.locator('#skillSlash').click();assert.equal(await page.locator('#skillSlash').isDisabled(),true);assert.match(await page.locator('#log').textContent(),/Doble golpe/);
+      await page.locator('[data-view="shop"]').click();assert.equal(await page.locator('[data-buy]').count(),5);assert.equal(await page.locator('[data-station]').count(),5);
+      await page.locator('[data-view="train"]').click();await page.locator('.mode.active').click();assert.equal((await inspect(page)).paused,false);await page.locator('#stop').click();
     });
     await page.screenshot({ path: path.join(artifacts, `${prefix}-desktop.png`), fullPage: true });
     await check(`${prefix}: mobile layout and real touch controls`, async () => {
@@ -170,7 +157,7 @@ TrainingRenderer.prototype.hero = function(x,y,...args) {
       const s = await until(page, s => s.objects.some(o => o.type === 'apple'));
       const apple = s.objects.find(o => o.type === 'apple');
       await page.clock.runFor(Math.ceil((apple.x - 350) / -apple.vx * 1000));
-      const target=await page.locator('#cv').boundingBox(),xy=[[330,320],[510,455],[330,620]][apple.lane];await page.touchscreen.tap(target.x+xy[0]*target.width/1200,target.y+xy[1]*target.height/720);await page.clock.runFor(20);
+      const xy=[[330,320],[510,455],[330,620]][apple.lane],q=await screenPoint(page,...xy);await page.touchscreen.tap(q.x,q.y);await page.clock.runFor(20);
       assert.equal((await inspect(page)).hits, 1);
       await page.clock.runFor(90);
       await page.screenshot({ path: path.join(artifacts, `${prefix}-mobile.png`), fullPage: true });
@@ -185,6 +172,7 @@ TrainingRenderer.prototype.hero = function(x,y,...args) {
   await require('./browser-delivery-a.cjs')(browser, url, check);
   await require('./browser-delivery-a1.cjs')(browser, url, check);
   await require('./browser-delivery-a2.cjs')(browser, url, check);
+  await require('./browser-delivery-a3.cjs')(browser, url, check);
   await check('GitHub Pages: application and modules load under /Argentum-Souls/', async () => {
     const page = await browser.newPage(), errors = [], failed = [];
     page.on('pageerror', e => errors.push(e.message));
