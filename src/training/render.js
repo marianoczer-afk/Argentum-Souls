@@ -1,7 +1,7 @@
-import {SHIELD,DODGE,shieldGeometry,dodgeMotion,dodgePerfect} from './geometry.js';
+import {SHIELD,DODGE,shieldGeometry,dodgeMotion} from './geometry.js';
 import {touchHints} from './controls.js';
 import {tuning} from './balance.js';
-import { LANES, dodgePhase, dodgeTrajectory, clamp } from './model.js';
+import { LANES, clamp } from './model.js';
 const TAU = Math.PI * 2;
 export function heroTransform(pose) {
   if (!pose) return { x: 0, y: 0, scaleY: 1, sword: -.5 };
@@ -61,13 +61,13 @@ export class TrainingRenderer {
   }
   dummy(x, y, s, motion=null) {
     const c = this.ctx;
-    c.save(); c.translate(x+(motion?.step??0),y);
+    c.save();c.translate(x+(motion?.step??0),y);if(motion)c.rotate(motion.torsoAngle??0);
     const cue = s?.objects.find(o => o.type === 'cue');
     c.rotate(!cue&&s?.dummy>0?-.12*Math.sin(s.dummy*20):0);
     c.strokeStyle = '#664939'; c.lineWidth = 13; c.lineCap = 'round'; c.beginPath(); c.moveTo(0,-85);c.lineTo(0,45);
-    if(motion){c.moveTo(0,25);c.lineTo(24,75);c.moveTo(0,25);c.lineTo(-22-(motion.kick??0),45);}
+    if(motion){c.moveTo(0,25);c.lineTo(24,75);c.moveTo(0,25);c.lineTo(-30,(motion.kneeLift??0)+10);c.lineTo(-22-(motion.kick??0),45+(motion.kneeLift??0)*.55);}
     else {c.lineTo(0,90);}
-    c.moveTo(0,-20);c.lineTo(48,-12);c.moveTo(0,-20);c.lineTo(-50-(motion?.arm??0),s?.throwCue?(s.throwCue.lane===2?20:-30):-12);c.stroke();
+    c.moveTo(0,-20);c.lineTo(48,-12);c.moveTo(0,-20);if(motion)c.lineTo(-30,-20+(motion.elbowLift??0));c.lineTo(-50-(motion?.arm??0),s?.throwCue?(s.throwCue.lane===2?20:-30):-12);c.stroke();
     this.round(-27,-44,54,78,13,'#d2c4a1');c.save();c.translate(motion?.headX??0,motion?.headY??0); this.circle(0, -78, 34, '#d2c4a1', '#66543e');
     this.circle(-12, -79, 4, '#526b67'); this.circle(12, -79, 4, '#526b67');
     c.strokeStyle = '#8e614c'; c.lineWidth = 3; c.beginPath(); c.moveTo(-12, -63); c.lineTo(13, -59); c.stroke();
@@ -130,7 +130,7 @@ export class TrainingRenderer {
       } else if (e.kind === 'slash') {
         c.strokeStyle = '#fff4c6'; c.lineWidth = 12 * (1 - p) + 1; c.lineCap = 'round'; c.beginPath(); c.arc(e.x, e.y, 60 + p * 30, -1.5 + p, .6 + p); c.stroke();
       } else if (e.kind === 'label') this.label(e.text, e.x, e.y - p * 30, 20, e.color);
-      else if (e.kind === 'miss') { c.fillStyle = '#ff534c'; c.globalAlpha = (1 - p) * .16; c.fillRect(0, 0, 1200, 720); }
+      else if (e.kind === 'miss') { c.fillStyle = '#ff534c'; c.globalAlpha = (1 - p) * .16; c.fillRect(-(this.canvas.width-1200)/2,0,this.canvas.width,720); }
       else if (e.kind === 'arrow') {
         const x = 120 + (e.x - 120) * p, y = 610 + (e.y - 610) * p;
         c.strokeStyle = '#fff0bf'; c.lineWidth = 3; c.beginPath(); c.moveTo(x, y); c.lineTo(x - (e.x - 120) * .12, y - (e.y - 610) * .12); c.stroke();
@@ -140,7 +140,7 @@ export class TrainingRenderer {
   }
   draw(engine, selected = 'str') {
     const c = this.ctx, s = engine.session, mode = s?.mode ?? selected;
-    c.clearRect(0, 0, 1200, 720); this.room(s?.time ?? 0);
+    const offset=(this.canvas.width-1200)/2;c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,this.canvas.width,720);c.fillStyle='#a9775e';c.fillRect(0,0,this.canvas.width,720);c.translate(offset,0);this.room(s?.time??0);
     const objects = s?.objects ?? [];
     if (mode === 'str') {
       c.save(); c.setLineDash([7, 10]); c.strokeStyle = '#f9e4b64f'; c.lineWidth = 1;
@@ -152,8 +152,8 @@ export class TrainingRenderer {
       this.hero(600, 420, s?.pose, false);
       const shield=shieldGeometry(engine.pointer);
       this.circle(SHIELD.x,SHIELD.y,SHIELD.radius,null,'#e1c68b65');
-      c.save();c.translate(shield.x,shield.y);c.rotate(shield.angle);
-      this.round(-SHIELD.depth/2,-SHIELD.span/2,SHIELD.depth,SHIELD.span,SHIELD.rounding,s?.pose?.kind==='block'?'#fff2b0':'#b9c1b9');this.round(-4,-23,9,46,4,'#386277');c.restore();
+      c.save();c.translate(SHIELD.x,SHIELD.y);c.rotate(shield.angle);const outer=SHIELD.radius+SHIELD.depth/2,inner=SHIELD.radius-SHIELD.depth/2;
+      c.beginPath();c.arc(0,0,outer,-SHIELD.halfAngle,SHIELD.halfAngle);c.arc(0,0,inner,SHIELD.halfAngle,-SHIELD.halfAngle,true);c.closePath();c.fillStyle=s?.pose?.kind==='block'?'#fff2b0':'#b9c1b9';c.fill();c.strokeStyle='#4d625f';c.lineWidth=2;c.stroke();c.beginPath();c.arc(0,0,SHIELD.radius,-SHIELD.halfAngle*.7,SHIELD.halfAngle*.7);c.strokeStyle='#386277';c.lineWidth=7;c.stroke();c.restore();
       objects.forEach(o=>this.apple(o));
     } else if (mode === 'acc') { objects.forEach(o => this.target(o)); this.bow(engine.pointer, s?.pose); }
     else if (mode === 'dodge') {
@@ -180,8 +180,9 @@ export class TrainingRenderer {
         this.label(stage==='air'?(perfect?'★':'✦'):'!',rx,ry+13,perfect?39:35,fake?'#ffd0c9':'#fff1b0');
       }
     }
+    if(s?.hurtFlash>0){c.fillStyle='#df5f4f44';c.fillRect(-offset,0,this.canvas.width,720);}
     if(engine.showTouchHints){for(const h of touchHints(mode)){this.circle(h.x,h.y,52,'#24384188','#f5dfa999');this.label(h.label,h.x,h.y+8,20,'#fff2ca');}}
     if (s) this.effects(s.effects);
-    if (s?.paused) { c.fillStyle = '#17232cbf'; c.fillRect(0, 0, 1200, 720); this.label('EN PAUSA · TU PROGRESO ESTÁ CONSERVADO', 600, 350, 24); }
+    if (s?.paused) { c.fillStyle = '#17232cbf'; c.fillRect(-(this.canvas.width-1200)/2,0,this.canvas.width,720); this.label('EN PAUSA · TU PROGRESO ESTÁ CONSERVADO', 600, 350, 24); }
   }
 }
