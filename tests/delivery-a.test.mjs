@@ -39,13 +39,13 @@ test('precision has a small perfect center, movement starts gradually around com
 test('dodge has ordered preparation, signal, perfect, late and strike phases',()=>{
  const e=new Training();e.start('dodge');e.session.spawn=999;
  const cue={id:1,type:'cue',kind:'low',age:0,windup:1.6,resolved:false};
- for(const [age,phase] of [[.1,'direction'],[.25,'prepare'],[.6,'signal'],[1.1,'signal'],[1.62,'perfect'],[1.8,'late'],[1.9,'strike']]){cue.age=age;assert.equal(dodgePhase(cue),phase);}
- cue.age=1.62;e.session.objects=[cue];e.input('ArrowUp');assert.equal(e.session.perfect,0);assert.equal(e.session.pose.kind,'jump');advance(e,.11);assert.equal(e.session.perfect,1);
+ for(const [age,phase] of [[.1,'direction'],[.25,'prepare'],[.6,'signal'],[1.1,'signal'],[1.42,'perfect'],[1.62,'late'],[1.8,'strike']]){cue.age=age;assert.equal(dodgePhase(cue),phase);}
+ cue.age=1.42;e.session.objects=[cue];e.input('ArrowUp');assert.equal(e.session.perfect,0);assert.equal(e.session.pose.kind,'jump');advance(e,.31);assert.equal(e.session.perfect,1);
  assert.equal(e.session.objects.length,1,'execution remains visible after a successful response');
  e.input('ArrowDown');assert.equal(e.session.hits,1,'resolved cue cannot award twice or punish a second tap');advance(e,.9);assert.equal(e.session.combo,1);
 });
 test('late valid dodge is good; too early and wrong direction provide an explicit reason',()=>{
- for(const [age,key,hits,perfect,reason] of [[1.4,'ArrowUp',1,0,null],[.1,'ArrowUp',0,0,'Muy pronto'],[1.62,'ArrowDown',0,0,'Dirección incorrecta']]){
+ for(const [age,key,hits,perfect,reason] of [[1.62,'ArrowUp',1,0,null],[.1,'ArrowUp',0,0,'Muy pronto'],[1.62,'ArrowDown',0,0,'Dirección incorrecta']]){
   const e=new Training();e.start('dodge');e.session.objects=[{id:1,type:'cue',kind:'low',age,windup:1.6,resolved:false}];e.input(key);advance(e,Math.max(0,1.73-age));
   assert.equal(e.session.hits,hits);assert.equal(e.session.perfect,perfect);if(reason)assert.ok(e.session.feedback.text.includes(reason));
  }

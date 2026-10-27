@@ -51,3 +51,8 @@ Las pruebas iniciales de diferencias de PNG no bastaban para detectar un héroe 
 ## Estado después de A.3
 
 La propuesta histórica de arena de tres/cinco rivales queda sustituida por el pedido A.3: cien arenas, diez regiones y cuatro rivales por arena, con combate durante contacto y habilidades activas. Los cinco entrenamientos incorporan recuperación sin fin de sesión, misiones persistentes y las correcciones de geometría/ventanas. Implementación y evidencia actual en [DELIVERY_A3.md](DELIVERY_A3.md); balance reproducible en [ARENA_BALANCE.md](ARENA_BALANCE.md). La rama de esta entrega es `dev/delivery-a3-hundred-arenas`; personajes e integración siguen pendientes. Se conservan las observaciones de los videos y los planes anteriores como historial, sin afirmar que las simulaciones equivalgan a partidas humanas.
+
+
+## A.3.1 y bocetos conceptuales
+
+El usuario agregó cuatro bocetos: HUD/barra central/subida de nivel, combate con ×1/×2, preparación de Esquiva y sala mejorable. Se adaptan como intención de diseño a los vectores existentes, sin incorporarlos como sprites ni afirmar fidelidad de ilustración. El blanco de Esquiva ahora precede al contacto físico; XP individual creciente y sala general reemplazan el ritmo de XP de A.3. Detalles en [DELIVERY_A31.md](DELIVERY_A31.md). El nivel general/talentos y la futura pesca se analizan en [FUTURE_PROGRESSION_AND_FISHING.md](FUTURE_PROGRESSION_AND_FISHING.md); no se implementan sus sistemas ni se inventan modificadores de Idle.
