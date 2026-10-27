@@ -1,7 +1,7 @@
 // Shared by simulation, drawing and touch mapping. No separate visual hitboxes.
 export const SHIELD = Object.freeze({x:600,y:390,radius:76,depth:21.4,span:66.8,halfAngle:.44,rounding:7,bodyRadius:43});
 export const SWORD = Object.freeze({commit:.045,active:.11,animation:.16});
-export const DODGE = Object.freeze({heroX:550,heroY:490,dummyX:730,dummyY:490,early:.2,perfectBefore:.06,perfectAfter:.12,late:.23,recover:.34});
+export const DODGE = Object.freeze({heroX:550,heroY:490,dummyX:730,dummyY:490,early:.2,perfectBefore:.06,perfectAfter:.12,late:.23,inputLead:.035,recover:.38});
 export function shieldGeometry(pointer){
  const angle=Math.atan2(pointer.y-SHIELD.y,pointer.x-SHIELD.x);
  return{angle,x:SHIELD.x+Math.cos(angle)*SHIELD.radius,y:SHIELD.y+Math.sin(angle)*SHIELD.radius};
@@ -21,12 +21,20 @@ export function swordPosition(apple){
  const y=[350,450,550][apple.lane];
  return apple.startY+(y-apple.startY)*t+Math.sin(Math.PI*t)*apple.arc;
 }
-export function dodgeWindow(cue){return{start:cue.windup-(cue.perfectBefore??DODGE.perfectBefore),end:cue.windup+(cue.perfectAfter??DODGE.perfectAfter)};}
+// The white interval ends 200 ms before physical contact. Never draw contact inside Perfect.
+export const dodgeImpact=cue=>cue.windup+.12;
+export function dodgeWindow(cue){return{start:cue.windup-.08-(cue.perfectBefore??DODGE.perfectBefore)-(cue.perfectAfter??DODGE.perfectAfter),end:cue.windup-.08};}
 export function dodgePerfect(cue){const w=dodgeWindow(cue);return cue.age>=w.start&&cue.age<=w.end;}
 export function dodgeMotion(cue){
- const w=dodgeWindow(cue),p=Math.max(0,Math.min(1,(cue.age-w.start)/(w.end-w.start)));
- // Extension peaks in the white-ring phase, then recovers; no directional feints.
- const strike=cue.age<=w.end?Math.sin(p*Math.PI):Math.max(0,1-(cue.age-w.end)/.14)*.15;
- const preparing=cue.age<w.start?Math.min(1,cue.age/cue.windup):0;
- return{step:18*preparing-65*strike,torsoAngle:cue.kind==='high'?.18*preparing-.18*strike:cue.kind==='low'?-.08*preparing:0,headX:cue.kind==='high'?22*preparing-55*strike:0,headY:cue.kind==='high'?-17*preparing-14*strike:0,arm:cue.kind==='mid'?-30*preparing+125*strike:0,kick:cue.kind==='low'?-22*preparing+100*strike:0,kneeLift:cue.kind==='low'?-60*preparing:0,elbowLift:cue.kind==='mid'?-45*preparing:0,prepare:preparing,perfect:dodgePerfect(cue)};
+ const w=dodgeWindow(cue),impact=dodgeImpact(cue),clamp=n=>Math.max(0,Math.min(1,n)),smooth=n=>{const t=clamp(n);return t*t*(3-2*t);};
+ const prepare=smooth(cue.age/w.start),extension=cue.age<=impact?smooth((cue.age-w.end)/(impact-w.end)):1-smooth((cue.age-impact)/.28);
+ const cock=prepare*(1-extension),strike=extension;
+ return{step:12*cock-38*strike,torsoAngle:cue.kind==='high'?.15*cock-.2*strike:cue.kind==='low'?-.08*cock:0,
+ headX:cue.kind==='high'?42*cock-65*strike:0,headY:cue.kind==='high'?-10*cock-10*strike:0,
+ arm:cue.kind==='mid'?-40*cock+128*strike:0,kick:cue.kind==='low'?-40*cock+130*strike:0,
+ armElbow:cue.kind==='mid'?{x:-15+45*cock-65*strike,y:-24-35*cock}:{x:-30,y:-20},
+ armHand:cue.kind==='mid'?{x:-50+65*cock-123*strike,y:-20}:{x:-50,y:-12},
+ legKnee:cue.kind==='low'?{x:-12+48*cock-68*strike,y:35-38*cock}:{x:-15,y:40},
+ legFoot:cue.kind==='low'?{x:-22+70*cock-138*strike,y:62-5*cock-15*strike}:{x:-22,y:65},
+ kneeLift:cue.kind==='low'?-38*cock:0,elbowLift:cue.kind==='mid'?-35*cock:0,prepare:cock,strike,perfect:dodgePerfect(cue)};
 }

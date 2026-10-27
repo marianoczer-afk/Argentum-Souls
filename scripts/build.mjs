@@ -22,4 +22,4 @@ const output=source.replace('name="souls-build" content=""','name="souls-build" 
 await writeFile(new URL('index.html',root),output);
 await mkdir(new URL('dist/',root),{recursive:true});await cp(new URL('src/',root),new URL('dist/src/',root),{recursive:true});await writeFile(new URL('dist/index.html',root),output);
 await writeFile(new URL('dist/.nojekyll',root),'');
-console.log(`Built A.3 · Cien Arenas ${version} · commit ${commit.slice(0,7)}${dirty?'+local':''} · ${build}`);
+console.log(`Built A.3.1 · Dominio y progreso ${version} · commit ${commit.slice(0,7)}${dirty?'+local':''} · ${build}`);

@@ -15,6 +15,7 @@ export function heroTransform(pose) {
   if(pose.kind==='block'){t.x=-Math.cos(pose.direction)*wave*5;t.y=-Math.sin(pose.direction)*wave*5;}
   if (pose.kind === 'hurt') t.x = -wave * 17;
   if (pose.kind === 'critical') t.x += wave * 30;
+  if(pose.kind==='combat-prepare'){t.sword=-.5-1.1*p;t.x=-6*p;t.y=-4*Math.sin(p*Math.PI);}
   return t;
 }
 export class TrainingRenderer {
@@ -30,9 +31,9 @@ export class TrainingRenderer {
   label(text, x, y, size = 20, color = '#fff0cf') {
     const c = this.ctx; c.fillStyle = color; c.font = `700 ${size}px system-ui`; c.textAlign = 'center'; c.fillText(text, x, y);
   }
-  room(time) {
+  room(time,level=1) {
     const c=this.ctx, wall=c.createLinearGradient(0,0,0,720);
-    wall.addColorStop(0,'#a9775e');wall.addColorStop(1,'#dfae7e');c.fillStyle=wall;c.fillRect(0,0,1200,720);
+    wall.addColorStop(0,level>=7?'#635242':level>=3?'#92725a':'#a9775e');wall.addColorStop(1,level>=7?'#b49770':level>=3?'#c7a67c':'#dfae7e');c.fillStyle=wall;c.fillRect(0,0,1200,720);
     c.fillStyle='#865d4c';c.beginPath();c.moveTo(0,0);c.lineTo(120,0);c.lineTo(120,540);c.lineTo(0,720);c.fill();
     c.fillStyle='#987357';c.beginPath();c.moveTo(0,720);c.lineTo(120,540);c.lineTo(1080,540);c.lineTo(1200,720);c.fill();
     c.strokeStyle='#69503e';c.lineWidth=3;c.strokeRect(120,-5,960,545);
@@ -42,13 +43,20 @@ export class TrainingRenderer {
     c.save();c.globalAlpha=.15;
     for(let i=0;i<35;i++){c.fillStyle=i%2?'#634739':'#f4d3a3';c.fillRect(150+(i*137)%900,80+(i*61)%410,30+i%20,3);}
     c.restore();this.circle(90,350+Math.sin(time)*2,3,'#fbe1a590');
+    // Additive room upgrades keep the same floor and actors; decoration stays above play lanes.
+    c.strokeStyle='#564635';c.lineWidth=7;c.beginPath();c.moveTo(120,45);c.lineTo(1080,45);c.moveTo(180,45);c.lineTo(180,250);c.moveTo(1020,45);c.lineTo(1020,250);c.stroke();
+    if(level>=3){for(const x of [215,950]){this.round(x,135,65,95,5,'#5d4935');for(let i=0;i<3;i++){c.strokeStyle='#cad0b8';c.lineWidth=4;c.beginPath();c.moveTo(x+14+i*17,210);c.lineTo(x+14+i*17,145);c.stroke();this.round(x+8+i*17,195,13,4,1,'#bfa262');}}}
+    if(level>=5){for(const x of [350,800]){c.fillStyle=level>=10?'#813a36':'#354f63';c.beginPath();c.moveTo(x,70);c.lineTo(x+64,70);c.lineTo(x+64,205);c.lineTo(x+32,230);c.lineTo(x,205);c.fill();this.label('✦',x+32,155,32,'#d5b56e');}}
+    if(level>=7){for(const x of [300,895]){this.round(x-6,205,12,55,2,'#5b4330');this.circle(x,195,20,'#ffc76833');this.circle(x,195,10,'#f1af48');this.circle(x,190,5,'#fff0a6');}}
+    if(level>=10){this.round(490,68,220,42,5,'#34444b');this.label('SALA DE ÉLITE',600,96,21,'#f5d889');c.strokeStyle='#dac27e';c.lineWidth=3;c.strokeRect(126,50,948,480);}
+
   }
   hero(x, y, pose, shield = true) {
     const c = this.ctx, t = heroTransform(pose);
     c.save(); c.globalAlpha = .22; this.circle(x, y + 48, 31, '#2a2520'); c.restore();
     c.save(); c.translate(x + t.x, y + t.y); c.scale(1, t.scaleY);
     c.strokeStyle = '#2c353a'; c.lineWidth = 14; c.lineCap = 'round';
-    c.beginPath(); c.moveTo(-10, 22); c.lineTo(-20, 45); c.moveTo(9, 22); c.lineTo(20, 45); c.stroke();
+    const stride=pose?.stride??0;c.beginPath(); c.moveTo(-10, 22); c.lineTo(-20+stride*13,45-Math.abs(stride)*4); c.moveTo(9, 22); c.lineTo(20-stride*13,45-Math.abs(stride)*4); c.stroke();
     c.fillStyle = '#3c6573'; c.beginPath(); c.moveTo(-20, -38); c.lineTo(-39, 27); c.lineTo(22, 25); c.lineTo(17, -38); c.fill();
     this.round(-22, -35, 46, 62, 12, '#56616a'); this.round(-18, -28, 38, 13, 4, '#8a9b9e');
     this.circle(0, -61, 29, '#36444b', '#202e34');
@@ -65,9 +73,9 @@ export class TrainingRenderer {
     const cue = s?.objects.find(o => o.type === 'cue');
     c.rotate(!cue&&s?.dummy>0?-.12*Math.sin(s.dummy*20):0);
     c.strokeStyle = '#664939'; c.lineWidth = 13; c.lineCap = 'round'; c.beginPath(); c.moveTo(0,-85);c.lineTo(0,45);
-    if(motion){c.moveTo(0,25);c.lineTo(24,75);c.moveTo(0,25);c.lineTo(-30,(motion.kneeLift??0)+10);c.lineTo(-22-(motion.kick??0),45+(motion.kneeLift??0)*.55);}
+    if(motion){c.moveTo(0,25);c.lineTo(24,75);c.moveTo(0,25);c.lineTo(motion.legKnee.x,motion.legKnee.y);c.lineTo(motion.legFoot.x,motion.legFoot.y);}
     else {c.lineTo(0,90);}
-    c.moveTo(0,-20);c.lineTo(48,-12);c.moveTo(0,-20);if(motion)c.lineTo(-30,-20+(motion.elbowLift??0));c.lineTo(-50-(motion?.arm??0),s?.throwCue?(s.throwCue.lane===2?20:-30):-12);c.stroke();
+    c.moveTo(0,-20);c.lineTo(48,-12);c.moveTo(0,-20);if(motion){c.lineTo(motion.armElbow.x,motion.armElbow.y);c.lineTo(motion.armHand.x,motion.armHand.y);}else c.lineTo(-50,s?.throwCue?(s.throwCue.lane===2?20:-30):-12);c.stroke();
     this.round(-27,-44,54,78,13,'#d2c4a1');c.save();c.translate(motion?.headX??0,motion?.headY??0); this.circle(0, -78, 34, '#d2c4a1', '#66543e');
     this.circle(-12, -79, 4, '#526b67'); this.circle(12, -79, 4, '#526b67');
     c.strokeStyle = '#8e614c'; c.lineWidth = 3; c.beginPath(); c.moveTo(-12, -63); c.lineTo(13, -59); c.stroke();
@@ -140,7 +148,7 @@ export class TrainingRenderer {
   }
   draw(engine, selected = 'str') {
     const c = this.ctx, s = engine.session, mode = s?.mode ?? selected;
-    const offset=(this.canvas.width-1200)/2;c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,this.canvas.width,720);c.fillStyle='#a9775e';c.fillRect(0,0,this.canvas.width,720);c.translate(offset,0);this.room(s?.time??0);
+    const offset=(this.canvas.width-1200)/2;c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,this.canvas.width,720);c.fillStyle='#a9775e';c.fillRect(0,0,this.canvas.width,720);c.translate(offset,0);this.room(s?.time??0,engine.getTraining(mode).room??1);
     const objects = s?.objects ?? [];
     if (mode === 'str') {
       c.save(); c.setLineDash([7, 10]); c.strokeStyle = '#f9e4b64f'; c.lineWidth = 1;

@@ -1,3 +1,4 @@
+import {statGain} from './progression/stat-gain.js';
 import { awardTraining, createBridge, xpRequired } from './state.js';
 import { openSaveSession } from './save-session.js';
 import { mountTraining } from './training/controller.js';
@@ -22,18 +23,18 @@ function feedback(kind,detail={}) {
     const oscillator = audio.createOscillator(), gain = audio.createGain();
     const run=Math.min(4,detail.run??0),sword=detail.mode==='str',block=detail.mode==='def';
     oscillator.type=sword?'sawtooth':block?'triangle':'sine';
-    oscillator.frequency.setValueAtTime(kind==='miss'?170:block?1050+run*120:sword?1000+run*160:kind==='perfect'?740:510,audio.currentTime);
-    oscillator.frequency.exponentialRampToValueAtTime(kind==='miss'?90:block?600+run*80:sword?220+run*70:500,audio.currentTime+.065);
+    oscillator.frequency.setValueAtTime(kind==='level'?1320:kind==='miss'?170:block?1050+run*120:sword?1000+run*160:kind==='perfect'?740:510,audio.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(kind==='level'?1760:kind==='miss'?90:block?600+run*80:sword?220+run*70:500,audio.currentTime+.065);
     gain.gain.setValueAtTime(.025, audio.currentTime); gain.gain.exponentialRampToValueAtTime(.001, audio.currentTime + .08);
     oscillator.connect(gain); gain.connect(audio.destination); oscillator.start(); oscillator.stop(audio.currentTime + .09);
   } catch { /* Sound is optional; training remains playable. */ }
 }
 const training = mountTraining({
-  root, getMission:mode=>state.missions[mode],getRecord:mode=>state.comboRecords[mode], getProgress: mode=>({level:state.stats[mode],xp:state.xp[mode],required:xpRequired(state.stats[mode])}),
+  root,getTraining:mode=>({level:state.stats[mode],room:state.room,station:state.stations[mode]}), getMission:mode=>state.missions[mode],getRecord:mode=>state.comboRecords[mode], getProgress: mode=>({level:state.stats[mode],xp:state.xp[mode],required:xpRequired(state.stats[mode])}),
   reward(mode, earned) {
-    const xp = earned.xp > 0 ? earned.xp + (earned.kind==='hit'?state.stations[mode]:0) : 0;
+    const xp=earned.xp;
     if (!canMutate()) return { xp: 0 };
-    awardTraining(state, mode, { ...earned, xp }); save(); progressDirty = true; return { xp };
+    const before=structuredClone(state),levels=awardTraining(state,mode,{...earned,xp});save();progressDirty=true;return{xp,levelUp:levels?{from:before.stats[mode],to:state.stats[mode],detail:statGain(before,state,mode)}:null};
   }, onSave: save, feedback, canMutate,
 });
 const arena = mountArena(state,save,economy.render,canMutate,root,feedback);
