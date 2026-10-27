@@ -46,3 +46,8 @@ Antes de publicar cambios en main se requiere revisión del PR. Esta etapa traba
 La regla de entrenamiento continuo no cambia. La persistencia ahora usa una única pestaña escritora y recarga el estado al transferir el control; el juego informa explícitamente cuándo el progreso está solo en memoria o requiere un reintento. Se conserva el guardado por acierto.
 
 Las pruebas iniciales de diferencias de PNG no bastaban para detectar un héroe sin animación. Se agregaron comprobaciones de las transformaciones aplicadas realmente al canvas y una prueba de mutación que debe rechazar `heroTransform(null)` en `hero()`. No equivalen a medir latencia física ni a probar teléfonos reales. Detalles y regresiones en [CORRECTIONS.md](CORRECTIONS.md).
+
+
+## Estado después de A.3
+
+La propuesta histórica de arena de tres/cinco rivales queda sustituida por el pedido A.3: cien arenas, diez regiones y cuatro rivales por arena, con combate durante contacto y habilidades activas. Los cinco entrenamientos incorporan recuperación sin fin de sesión, misiones persistentes y las correcciones de geometría/ventanas. Implementación y evidencia actual en [DELIVERY_A3.md](DELIVERY_A3.md); balance reproducible en [ARENA_BALANCE.md](ARENA_BALANCE.md). La rama de esta entrega es `dev/delivery-a3-hundred-arenas`; personajes e integración siguen pendientes. Se conservan las observaciones de los videos y los planes anteriores como historial, sin afirmar que las simulaciones equivalgan a partidas humanas.

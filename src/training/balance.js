@@ -7,7 +7,7 @@ export function tuning(mode,d,scale=1){
  const common={intervalJitter:.08};
  if(mode==='str')return{...common,speed:260+330*d,speedJitter:10,interval:.94-.5*d,minInterval:.34,pairChance:.12+.48*d,pairGap:.29-.08*d,tripleChance:.35*d,minActionGap:.19};
  if(mode==='def')return{...common,travel:2.05-1.01*d,interval:.95-.49*d,minInterval:.37,pairChance:.08+.48*d,pairGap:.38-.08*d,minArrivalGap:.33-.05*d,tripleChance:.16*d};
- if(mode==='acc')return{...common,radius:Math.max(48,Math.min(110,27/scale)),life:2.05-.5*d,interval:1.05-.34*d,minInterval:.55,pairChance:.1+.4*d,pairGap:.4-.08*d,motion:Math.max(0,(d-difficultyTarget(8))/(1-difficultyTarget(8)))*78};
- if(mode==='dodge')return{...common,windup:1.05-.24*d,interval:.32-.1*d,minInterval:.18,accept:.2,perfectStart:-.06,perfectEnd:.12,late:.23};
- return{...common,ready:.78-.16*d,air:.46-.08*d,fake:.64-.1*d,fakeChance:.25+.28*d,waitMin:.16,waitMax:.42-.1*d,perfectStart:.07,perfectEnd:.19};
+ if(mode==='acc')return{...common,radius:Math.max(54,Math.min(124,30.4/scale)),life:2.05-.5*d,interval:1.05-.34*d,minInterval:.55,pairChance:.1+.4*d,pairGap:.4-.08*d,motion:Math.max(0,(d-difficultyTarget(8))/(1-difficultyTarget(8)))*78};
+ if(mode==='dodge')return{...common,windup:1.04-.25*d,interval:.32-.1*d,minInterval:.18,accept:.2,perfectBefore:.075-.025*d,perfectAfter:.135-.025*d,perfectStart:-.075+.025*d,perfectEnd:.135-.025*d,late:.23};
+ return{...common,ready:.74-.16*d,air:.46-.08*d,fake:.64-.1*d,fakeChance:.25+.28*d,waitMin:.16,waitMax:.42-.1*d,perfectStart:.08,perfectEnd:.18};
 }

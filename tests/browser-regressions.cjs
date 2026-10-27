@@ -27,7 +27,7 @@ module.exports = async function regressions(browser, url, check) {
     assert.fail(`Save session did not become ${status}`);
   }
   async function until(p, predicate, limit = 400) {
-    for (let i = 0; i < limit; i++) { const s = await session(p); if (predicate(s)) return s; await p.clock.runFor(50); }
+    for (let i = 0; i < limit; i++) { const s = await session(p); if(predicate(s))return s;if(s.recovery)await p.keyboard.press('Enter'); await p.clock.runFor(50); }
     assert.fail('Missing cue or target');
   }
   async function start(p, mode, touch = false) {
@@ -35,7 +35,7 @@ module.exports = async function regressions(browser, url, check) {
     await p.locator('.mode.active')[touch ? 'tap' : 'click']();
   }
   async function screenPoint(p, x, y) {
-    const b = await p.locator('#cv').boundingBox(); return { x: b.x + x * b.width / 1200, y: b.y + y * b.height / 720 };
+    const b=await p.locator('#cv').boundingBox(),v=await p.locator('#cv').evaluate(c=>({w:c.width,h:c.height}));return{x:b.x+(x+(v.w-1200)/2)*b.width/v.w,y:b.y+y*b.height/v.h};
   }
   async function precisionHit(p, touch = false) {
     await start(p, 'acc', touch);

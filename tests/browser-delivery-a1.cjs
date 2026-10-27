@@ -10,10 +10,10 @@ module.exports=async(browser,url,check)=>{
  await p.goto(url+'/Argentum-Souls/');await ready();
  const s=()=>p.evaluate(()=>structuredClone(window.__training.session));
  const progress=()=>p.evaluate(()=>window.ArgentumSoulsBridge.exportProgress());
- const point=async(x,y)=>{const b=await p.locator('#cv').boundingBox();return{x:b.x+x*b.width/1200,y:b.y+y*b.height/720};};
- const appleVisible=async o=>p.evaluate(({x,y})=>{const c=document.getElementById('cv').getContext('2d'),d=c.getImageData(Math.round(x),Math.round(y),1,1).data;return d[0]>d[1]*1.3&&d[0]>100;},o);
+ const point=async(x,y)=>{const b=await p.locator('#cv').boundingBox(),v=await p.locator('#cv').evaluate(c=>({w:c.width,h:c.height}));return{x:b.x+(x+(v.w-1200)/2)*b.width/v.w,y:b.y+y*b.height/v.h};};
+ const appleVisible=async o=>p.evaluate(({x,y})=>{const c=document.getElementById('cv').getContext('2d'),d=c.getImageData(Math.round(x+(document.getElementById('cv').width-1200)/2),Math.round(y),1,1).data;return d[0]>d[1]*1.3&&d[0]>100;},o);
  const click=async(x,y,touch=false)=>{const q=await point(x,y);if(touch)await p.touchscreen.tap(q.x,q.y);else await p.mouse.click(q.x,q.y);};
- const until=async(condition,limit=600)=>{for(let i=0;i<limit;i++){const state=await s();if(condition(state))return state;await p.clock.runFor(25);}throw Error('gameplay state not reached');};
+ const until=async(condition,limit=600)=>{for(let i=0;i<limit;i++){const state=await s();if(condition(state))return state;if(state.recovery)await p.keyboard.press('Enter');await p.clock.runFor(25);}throw Error('gameplay state not reached');};
  const mode=async m=>{await p.locator(`[data-mode="${m}"]`).click();};
  const preset=async(combo)=>p.evaluate(combo=>{const e=window.__training;e.session.combo=combo;e.session.difficulty=Math.min(1,Math.log1p(combo/40)/Math.log(6));e.session.spawn=0;e.session.starTimer=999;},combo);
  const screenshot=async name=>{await p.clock.runFor(20);return p.screenshot({path:path.join(__dirname,'../artifacts',`delivery-a1-${name}.png`),fullPage:true});};
@@ -29,11 +29,11 @@ module.exports=async(browser,url,check)=>{
    await p.clock.runFor(20);
   }
   const motions=await p.evaluate(()=>window.motion);assert.ok(motions.some(m=>m.id==='comboFocus'&&m.frames.some(f=>f.transform==='scale(1.18)')));assert.ok(motions.some(m=>m.attribute==='acc'&&m.frames[0].transform==='scale(1.03)'));
-  const row=p.locator('[data-attribute="acc"]');assert.match(await row.innerText(),/Nv [1-9]/);assert.equal(await row.locator('progress').getAttribute('max'),String(20+(await progress()).stats.acc*4));
+  const row=p.locator('[data-attribute="acc"]');assert.match(await row.innerText(),/Nv [1-9]/);assert.equal(await row.locator('progress').getAttribute('max'),String(Math.round(20+(await progress()).stats.acc*4+6*(await progress()).stats.acc**2.3)));
   const before=await progress(),target=(await until(s=>s.objects.length)).objects[0];await click(target.x+target.r+4,target.y);assert.equal((await s()).combo,0);assert.deepEqual(await progress(),before);
   // Replaying the same attribute after reload retains the durable high-water mark.
   await p.locator('#stop').click();await p.reload();await ready();assert.equal((await progress()).comboRecords.acc,25);
-  await mode('acc');assert.equal(await p.locator('#bestCombo').innerText(),'25');for(let i=0;i<10;i++){const target=(await until(s=>s.objects.length)).objects[0];const before=await s();await click(target.x,target.y);if(i===9)assert.equal((await s()).xp-before.xp,3);}
+  await mode('acc');assert.equal(await p.locator('#bestCombo').innerText(),'25');for(let i=0;i<10;i++){const target=(await until(s=>s.objects.length)).objects[0];const before=await s();await click(target.x,target.y);if(i===9){const after=await s(),extra=after.missionRecord.index>before.missionRecord.index?12+Math.min(168,(before.missionRecord.index-1)*4):0;assert.equal(after.xp-before.xp,3+extra);};}
   const got=await s();assert.notEqual(got.notice?.text,'★ COMBO 10 · +3 XP extra');
  });
  await check('A.1: browser samples all seven combos in all five disciplines; speed, cadence and windows change gradually',async()=>{
@@ -62,11 +62,11 @@ module.exports=async(browser,url,check)=>{
    await p.clock.runFor(10);
   }
   assert.equal(ids.size,0);assert.equal((await s()).hits-initialHits,pair.length);
-  await mode('str');const star=(await until(s=>s.objects.some(o=>o.type==='star'))).objects.find(o=>o.type==='star');assert.ok(star.x>=220&&star.x<270&&star.y>425&&star.y<450);
+  await mode('str');await p.evaluate(()=>window.__training.session.spawn=999);const star=(await until(s=>s.objects.some(o=>o.type==='star'))).objects.find(o=>o.type==='star');assert.ok(star.x>=220&&star.x<270&&star.y>425&&star.y<450);
   const before=(await s()).hits;await p.keyboard.press('ArrowLeft');assert.equal((await s()).hits,before+1);await p.keyboard.press('ArrowLeft');assert.equal((await s()).hits,before+1);
  });
  await check('A.1: defense burst enters from outside, stays on a straight ray and native pointer blocks distinct arrivals',async()=>{
-  await mode('def');await preset(200);let state=await until(s=>s.objects.some(o=>o.burst));const ids=state.objects.map(o=>o.id),records=new Map(state.objects.map(o=>[o.id,o]));
+  await mode('def');await preset(200);await p.evaluate(()=>{const e=window.__training;e.session.spawn=999;e.spawnObject();});await p.clock.runFor(300);await p.evaluate(()=>window.__training.spawnObject(true));let state=await s();const ids=state.objects.map(o=>o.id),records=new Map(state.objects.map(o=>[o.id,o]));
   assert.ok(ids.length>=2);const arrivals=state.objects.map(o=>o.arrival).sort((a,b)=>a-b);for(let i=1;i<arrivals.length;i++)assert.ok(arrivals[i]-arrivals[i-1]>=.26-1e-7);
   await p.clock.runFor(350);await screenshot('defense-burst');const hits=state.hits;
   for(let i=0;i<250;i++){
@@ -82,7 +82,7 @@ module.exports=async(browser,url,check)=>{
   target=(await until(s=>s.objects.length)).objects[0];await click(target.x,target.y,true);assert.equal((await s()).perfect,1);
   const pair=(await until(s=>s.objects.some(o=>o.burst)&&s.objects.length>=2)).objects;assert.ok(pair.every(o=>Math.abs(o.vx)>0));await screenshot('precision-pair');
   const hits=(await s()).hits;for(const o of pair)await click(o.x,o.y,true);assert.equal((await s()).hits,hits+pair.length);
-  const before=await progress();await click(1190,710,true);assert.equal((await s()).combo,0);assert.deepEqual(await progress(),before);
+  const before=await progress();await click(80,690,true);assert.equal((await s()).combo,0);assert.deepEqual(await progress(),before);
  });
  await check('A.1: straight dodge cue precedes preparation; early Good, Perfect and clear Fail grade once on execution',async()=>{
   for(const [fraction,correct,outcome] of [[.08,true,'miss'],[.24,true,'good'],[1.03,true,'perfect'],[1.03,false,'miss']]){
@@ -90,7 +90,7 @@ module.exports=async(browser,url,check)=>{
    const q=(await s()).objects[0],needed={low:'ArrowUp',high:'ArrowDown',mid:'ArrowLeft'}[q.kind];
    if(fraction===.08){await screenshot('dodge-direction');}
    await p.keyboard.press(correct?needed:needed==='ArrowDown'?'ArrowUp':'ArrowDown');assert.equal((await s()).hits,0);assert.ok((await s()).pose);
-   await p.clock.runFor(Math.ceil((q.windup-q.age+.14)*1000));const resolved=await s();assert.equal(resolved.objects[0].outcome,outcome);assert.equal(resolved.hits,outcome==='miss'?0:1);assert.equal(resolved.misses,outcome==='miss'?1:0);
+   await p.clock.runFor(Math.ceil((q.windup-q.age+.19)*1000));const resolved=await s();assert.equal(resolved.objects[0].outcome,outcome);assert.equal(resolved.hits,outcome==='miss'?0:1);assert.equal(resolved.misses,outcome==='miss'?1:0);
    const before=await progress();await p.keyboard.press(needed);assert.deepEqual(await progress(),before);if(outcome==='perfect')await screenshot('dodge-strike');
   }
  });
@@ -103,9 +103,9 @@ module.exports=async(browser,url,check)=>{
  });
  await check('A.1: centered combo, compact five-stat right panel and controls inside scene; mobile panel collapses',async()=>{
   await mode('str');const scene=await p.locator('#scene').boundingBox(),combo=await p.locator('#comboFocus').boundingBox(),panel=await p.locator('.training-stats').boundingBox();
-  assert.ok(Math.abs((combo.x+combo.width/2)-(scene.x+scene.width/2))<2);assert.ok(panel.x>=scene.x+scene.width);assert.ok(panel.width<=190);assert.ok(scene.width>1100);
-  assert.equal(await p.locator('#trainingStats .training-attribute').count(),5);assert.ok(await p.locator('#touchControls').evaluate(e=>!!e.closest('#scene')));assert.equal(await p.locator('#result').innerText(),'');assert.equal(await p.locator('#guide').isVisible(),false);await screenshot('desktop');
-  await p.setViewportSize({width:390,height:844});const small=await p.locator('#scene').boundingBox(),below=await p.locator('.training-stats').boundingBox();assert.ok(below.y>=small.y+small.height-1);assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await p.locator('.training-stats>summary').tap();assert.equal(await p.locator('#trainingStats').isVisible(),false);await screenshot('mobile');
+  assert.ok(Math.abs((combo.x+combo.width/2)-(scene.x+scene.width/2))<2);assert.ok(panel.x>=scene.x+scene.width);assert.ok(panel.width<=190);assert.ok(scene.width>1000);
+  assert.equal(await p.locator('#trainingStats .training-attribute').count(),5);assert.equal(await p.locator('#touchControls').count(),0);assert.equal(await p.locator('#result').innerText(),'');assert.equal(await p.locator('#guide').isVisible(),false);await screenshot('desktop');
+  await p.setViewportSize({width:390,height:844});const small=await p.locator('#scene').boundingBox(),below=await p.locator('.training-stats').boundingBox();assert.ok(below.y<small.y);assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);if(await p.locator('#attributesPanel').evaluate(e=>e.open))await p.locator('#attributesPanel>summary').tap();assert.equal(await p.locator('#trainingStats').isVisible(),false);await screenshot('mobile');
  });
  assert.deepEqual(errors,[]);
  }finally{await context.close();}
