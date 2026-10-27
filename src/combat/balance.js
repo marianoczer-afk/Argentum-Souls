@@ -1,5 +1,5 @@
 import {gearPower} from '../progression/equipment.js';
-export const COMBAT=Object.freeze({heroInterval:1.25,slashCooldown:8,guardCooldown:12,healCooldown:20,guardDuration:3.5,guardMultiplier:.38,healFraction:.3,betweenHeal:.08});
+export const COMBAT=Object.freeze({heroInterval:1.7,heroWindup:.36,enemyWindup:.42,chargedWindup:.9,lunge:.26,return:.34,transition:1.1,slashCooldown:8,guardCooldown:12,healCooldown:20,guardDuration:3.5,guardMultiplier:.38,healFraction:.3,betweenHeal:.08});
 const cap=(n,a,b)=>Math.max(a,Math.min(b,n));
 export const statPower=level=>Math.max(0,level)**.82;
 export function heroStats(state){
@@ -12,6 +12,9 @@ export function heroStats(state){
 export function enemyStats(arena,wave,archetype,regionalBoss=false){
  const types={swift:{hp:.8,atk:.77,interval:1.02,armor:.08,evade:.12},brute:{hp:1.05,atk:1.4,interval:2.02,armor:.12,evade:.02},armored:{hp:1.18,atk:.95,interval:1.8,armor:.36,evade:.02},mystic:{hp:.92,atk:1.03,interval:1.65,armor:.15,evade:.06},duelist:{hp:1,atk:1.08,interval:1.4,armor:.19,evade:.08}};
  const t=types[archetype],boss=wave===3;
- return{...t,hp:Math.round((65+arena*3.8+arena**1.45*.85)*t.hp*(boss?(regionalBoss?2.3:1.65):[.85,1,1.16][wave])),attack:(5+arena*.77+arena**1.18*.15)*t.atk*(boss?1.35:1),boss,regionalBoss,archetype};
+ const hpWave=boss?(regionalBoss?2.65:2.25):[1,1.35,1.8][wave],pressure=[1,1.4,1.95,2.75][wave];
+ // Archetypes retain cadence/armour identities, but every later wave has more HP and DPS.
+ const hpType=.96+(t.hp-.8)*.16;
+ return{...t,interval:t.interval*1.18,hp:Math.round((65+arena*3.8+arena**1.45*.85)*hpType*hpWave),attack:(5+arena*.77+arena**1.18*.15)*.43*pressure*(t.interval/1.65),boss,regionalBoss,archetype};
 }
 export const arenaReward=id=>45+id*8+Math.floor(id**1.3)*2;
