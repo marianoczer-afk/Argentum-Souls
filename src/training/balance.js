@@ -1,6 +1,5 @@
 // Combo determines challenge; rhythm phrases vary cadence without shrinking reaction floors.
-export const COMBO_MILESTONES = Object.freeze({10:3,25:5,50:8,100:12,150:16,200:20});
-export const MISSION_REWARD = Object.freeze({xp:12,gold:15});
+export const COMBO_MILESTONES = Object.freeze([10,25,50,100,150,200]);
 export const difficultyTarget = combo => Math.min(1,Math.log1p(Math.max(0,combo)/35)/Math.log1p(150/35));
 export function tuning(mode,d,scale=1){
  d=Math.max(0,Math.min(1,d));

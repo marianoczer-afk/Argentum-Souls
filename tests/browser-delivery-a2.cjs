@@ -24,7 +24,7 @@ TrainingRenderer.prototype.dummy=function(x,y,s,m){const c=this.ctx,translate=c.
  await check('A.2 touch: three evasions use scene zones, white ring is scored Perfect and no gesture scrolls',async()=>{
   await p.setViewportSize({width:390,height:844});const kinds=new Set();
   for(let i=0;i<12&&kinds.size<3;i++){
-   await mode('dodge');const state=await until(s=>s.objects[0]?.age>=s.objects[0]?.windup+.01),cue=state.objects[0];kinds.add(cue.kind);
+   await mode('dodge');const state=await until(s=>s.objects[0]?.age>=s.objects[0]?.windup-.15),cue=state.objects[0];kinds.add(cue.kind);
    assert.equal(await p.locator('#cueBanner').isVisible(),false);
    const before=await p.evaluate(()=>scrollY);await tap(...(cue.kind==='low'?[550,320]:cue.kind==='high'?[550,620]:[370,465]));assert.equal((await s()).objects[0].outcome,'perfect');assert.ok((await s()).pose);
    await until(s=>s.hits===1);assert.equal((await s()).perfect,1);assert.equal((await s()).misses,0);assert.equal(await p.evaluate(()=>scrollY),before);
@@ -67,11 +67,11 @@ TrainingRenderer.prototype.dummy=function(x,y,s,m){const c=this.ctx,translate=c.
   await p.setViewportSize({width:1366,height:768});const frames={};
   for(const kind of ['high','mid','low']){
    await mode('dodge');await fixture(()=>{window.__training.session.spawn=999;window.__training.session.objects=[];});
-   await p.evaluate(kind=>{window.__training.session.objects=[{id:1,type:'cue',kind,age:.9,windup:1,resolved:false}];},kind);await p.clock.runFor(20);assert.equal((await s()).objects[0].age<.94,true);
+   await p.evaluate(kind=>{window.__training.session.objects=[{id:1,type:'cue',kind,age:.6,windup:1,resolved:false}];},kind);await p.clock.runFor(20);assert.equal((await s()).objects[0].age<.64,true);
    const beforeWhite=await p.evaluate(()=>{const a=document.getElementById('cv').getContext('2d').getImageData(593+(document.getElementById('cv').width-1200)/2,389,3,3).data;for(let i=0;i<a.length;i+=4)if(a[i]>240&&a[i+1]>240&&a[i+2]>240)return true;return false;});assert.equal(beforeWhite,false);
-   await p.clock.runFor(100);assert.equal(await p.locator('#cueBanner').isVisible(),false);frames[kind]=await p.evaluate(()=>window.__dummyFrame);
+   await p.clock.runFor(200);assert.equal(await p.locator('#cueBanner').isVisible(),false);frames[kind]=await p.evaluate(()=>window.__dummyFrame);
    const white=await p.evaluate(()=>{const d=document.getElementById('cv').getContext('2d').getImageData(593+(document.getElementById('cv').width-1200)/2,389,3,3).data;for(let i=0;i<d.length;i+=4)if(d[i]>240&&d[i+1]>240&&d[i+2]>240)return true;return false;});assert.equal(white,true);
-   await p.keyboard.press({high:'ArrowDown',mid:'ArrowLeft',low:'ArrowUp'}[kind]);assert.equal((await s()).objects[0].perfect,true);await p.clock.runFor(140);assert.equal((await s()).perfect,1);
+   await p.keyboard.press({high:'ArrowDown',mid:'ArrowLeft',low:'ArrowUp'}[kind]);assert.equal((await s()).objects[0].perfect,true);await p.clock.runFor(330);assert.equal((await s()).perfect,1);
   }
   assert.notDeepEqual(frames.high.calls,frames.mid.calls);assert.notDeepEqual(frames.mid.calls,frames.low.calls);await screenshot('dodge');
  });
@@ -94,7 +94,7 @@ TrainingRenderer.prototype.dummy=function(x,y,s,m){const c=this.ctx,translate=c.
    for(const [width,height] of [[1024,600],[1280,720],[1366,768],[1440,900],[1920,1080]]){
     await dp.setViewportSize({width,height});await dp.locator('[data-mode="str"]').click();await dp.waitForTimeout(60);
     const frame=await dp.locator('#scene').boundingBox(),canvas=await dp.locator('#cv').boundingBox(),panel=await dp.locator('.training-stats').boundingBox();assert.ok(frame.y>=0&&frame.y+frame.height<=height+1,`${width}x${height}: scene fits`);assert.ok(panel.y+panel.height<=height+1);assert.ok(Math.abs(canvas.width/canvas.height-(await dp.locator('#cv').evaluate(c=>c.width/c.height)))<.01);assert.equal(await dp.evaluate(()=>document.documentElement.scrollHeight<=innerHeight),true);
-    for(const id of ['combo','soulsMission','sessionXp','pause','stop']){const r=await dp.locator('#'+id).boundingBox();assert.ok(r&&r.y+r.height<=height+1);}
+    for(const id of ['combo','soulsMission','attributeLevel','pause','stop']){const r=await dp.locator('#'+id).boundingBox();assert.ok(r&&r.y+r.height<=height+1);}
    }
    await dp.setViewportSize({width:1366,height:768});await dp.locator('[data-mode="str"]').click();await dp.waitForTimeout(850);await dp.screenshot({path:path.join(__dirname,'../artifacts/delivery-a2-desktop.png'),fullPage:true});
   }finally{await desktop.close();}

@@ -1,10 +1,10 @@
 import {ARENAS} from './regions.js';
 import {COMBAT,heroStats,enemyStats} from './balance.js';
 export const ABILITIES=Object.freeze({slash:{name:'Doble golpe',cooldown:COMBAT.slashCooldown},shield:{name:'Guardia',cooldown:COMBAT.guardCooldown},heal:{name:'Curar',cooldown:COMBAT.healCooldown}});
-export function attackMotion(attack,reach){if(!attack)return 0;const t=attack.time,w=attack.windup;return t<w?-.025*reach*Math.sin(t/w*Math.PI):t<w+.14?Math.sin((t-w)/.14*Math.PI/2)*reach:Math.max(0,1-(t-w-.14)/.22)*reach;}
+export function attackMotion(attack,reach){if(!attack)return 0;const t=attack.time,w=attack.windup,l=COMBAT.lunge,r=COMBAT.return;return t<w?-.045*reach*Math.sin(t/w*Math.PI):t<w+l?(1-Math.cos((t-w)/l*Math.PI/2))*reach:Math.max(0,1-(t-w-l)/r)*reach;}
 export class Combat {
  constructor({state,arena=1,random=Math.random,onVictory=()=>{},feedback=()=>{}}){
-  this.arena=ARENAS[arena-1];if(!this.arena)throw Error('Arena inválida');
+  this.accumulator=0;this.speed=1;this.arena=ARENAS[arena-1];if(!this.arena)throw Error('Arena inválida');
   this.random=random;this.onVictory=onVictory;this.feedback=feedback;this.heroStats=heroStats(state);
   this.hero=this.heroStats.hp;this.phase='fight';this.wave=0;this.time=0;this.transition=0;this.paused=false;this.guard=0;this.cooldowns={slash:0,shield:0,heal:0};this.heroClock=.4;this.enemyClock=.9;this.heroAttack=null;this.enemyAttack=null;this.effects=[];this.log=[];this.settled=false;this.special=1;this.kills=0;this.heroHurt=0;this.enemyHurt=0;this.enemyTurns=0;this.spawnEnemy();
  }
@@ -35,6 +35,8 @@ export class Combat {
   this.hero=Math.max(0,this.hero-damage);this.heroHurt=.2;this.effect(`${Math.round(damage)}`,'hero','#ffb6a2');this.event(`Recibís ${Math.round(damage)}${charged?' · golpe cargado':''}`);
   if(e.archetype==='mystic'&&this.enemyTurns%3===0){const healed=Math.min(e.hp-this.enemy,e.hp*.06);this.enemy+=healed;this.effect(`+${Math.round(healed)}`,'enemy','#aff1c1');}
  }
+ setSpeed(speed){if(speed!==1&&speed!==2)return false;this.speed=speed;return true;}
+ advance(realDt){if(this.paused||!Number.isFinite(realDt)||realDt<=0)return;this.accumulator+=realDt*this.speed;const step=1/120;while(this.accumulator>=step-1e-10){this.update(step);this.accumulator-=step;}}
  update(dt){
   if(this.paused||!Number.isFinite(dt)||dt<=0)return;
   this.effects.forEach(e=>e.age+=dt);this.effects=this.effects.filter(e=>e.age<.85);this.heroHurt=Math.max(0,this.heroHurt-dt);this.enemyHurt=Math.max(0,this.enemyHurt-dt);
@@ -42,14 +44,14 @@ export class Combat {
   for(const key in this.cooldowns)this.cooldowns[key]=Math.max(0,this.cooldowns[key]-dt);this.guard=Math.max(0,this.guard-dt);this.enemyGuard=Math.max(0,this.enemyGuard-dt);
   if(this.phase==='transition'){this.transition-=dt;if(this.transition<=0){this.wave++;this.hero=Math.min(this.heroStats.hp,this.hero+this.heroStats.hp*COMBAT.betweenHeal);this.phase='fight';this.spawnEnemy();}return;}
   this.heroClock-=dt;this.enemyClock-=dt;
-  if(!this.heroAttack&&this.heroClock<=0){this.heroAttack={time:0,windup:.2,hit:false,special:this.special};this.special=1;this.heroClock=this.heroStats.interval;}
-  if(!this.enemyAttack&&this.enemyClock<=0){this.enemyTurns++;const charged=this.enemyStats.boss&&this.enemyTurns%3===0;this.enemyAttack={time:0,windup:charged?.72:.34,hit:false,charged};const enraged=this.enemyStats.boss&&this.enemy<this.enemyStats.hp*.45;this.enemyClock=this.enemyStats.interval*(enraged?.8:1);if(this.enemyStats.archetype==='armored'&&this.enemyTurns%3===1)this.enemyGuard=.8;}
-  if(this.heroAttack){const a=this.heroAttack;a.time+=dt;if(!a.hit&&a.time>=a.windup+.14){a.hit=true;this.heroHit(a.special);}if(a.time>=a.windup+.36)this.heroAttack=null;}
+  if(!this.heroAttack&&this.heroClock<=0){this.heroAttack={time:0,windup:COMBAT.heroWindup,hit:false,special:this.special};this.special=1;this.heroClock=this.heroStats.interval;}
+  if(!this.enemyAttack&&this.enemyClock<=0){this.enemyTurns++;const charged=this.enemyStats.boss&&this.enemyTurns%3===0;this.enemyAttack={time:0,windup:charged?COMBAT.chargedWindup:COMBAT.enemyWindup,hit:false,charged};const enraged=this.enemyStats.boss&&this.enemy<this.enemyStats.hp*.45;this.enemyClock=this.enemyStats.interval*(enraged?.8:1);if(this.enemyStats.archetype==='armored'&&this.enemyTurns%3===1)this.enemyGuard=.8;}
+  if(this.heroAttack){const a=this.heroAttack;a.time+=dt;if(!a.hit&&a.time>=a.windup+COMBAT.lunge){a.hit=true;this.heroHit(a.special);}if(a.time>=a.windup+COMBAT.lunge+COMBAT.return)this.heroAttack=null;}
   if(this.enemy<=0){this.kills++;this.heroAttack=null;this.enemyAttack=null;
    if(this.wave===3){this.phase='victory';this.transition=0;if(!this.settled){this.settled=true;this.reward=this.onVictory(this.arena.id);this.event('¡Arena completada!');}}
-   else {this.phase='transition';this.transition=.8;this.event('Rival derrotado · siguiente encuentro');}return;
+   else {this.phase='transition';this.transition=COMBAT.transition;this.event('Rival derrotado · siguiente encuentro');}return;
   }
-  if(this.enemyAttack){const a=this.enemyAttack;a.time+=dt;if(!a.hit&&a.time>=a.windup+.14){a.hit=true;this.enemyHit(a.charged);}if(a.time>=a.windup+.36)this.enemyAttack=null;}
+  if(this.enemyAttack){const a=this.enemyAttack;a.time+=dt;if(!a.hit&&a.time>=a.windup+COMBAT.lunge){a.hit=true;this.enemyHit(a.charged);}if(a.time>=a.windup+COMBAT.lunge+COMBAT.return)this.enemyAttack=null;}
   if(this.hero<=0){this.phase='defeat';this.transition=0;this.heroAttack=null;this.enemyAttack=null;this.event('Derrota · conservás todo tu progreso');}
  }
 }

@@ -1,5 +1,7 @@
+import {trainingXp} from '../progression/training-xp.js';
+import {xpRequired} from '../state.js';
 import {newMissionProgress,normalizeMission,advanceMission,missionText} from '../progression/missions.js';
-import {SHIELD,SWORD,DODGE,shieldContact,swordPosition,dodgePerfect,dodgeWindow} from './geometry.js';
+import {SHIELD,SWORD,DODGE,shieldContact,swordPosition,dodgePerfect,dodgeWindow,dodgeImpact} from './geometry.js';
 import {COMBO_MILESTONES, difficultyTarget, tuning} from './balance.js';
 export const MODES = {
   str: { name: 'Fuerza', icon: '🗡️', desc:'Cortá lanzamientos altos, directos y bajos. La estrella trasera es un bonus opcional.', guide: '↑ / W: corte alto · → / D: corte medio · ↓ / S: corte bajo · ← / A: estrella. Encadená pulsaciones. En celular: encima = alto, derecha = medio, debajo = bajo, detrás/izquierda = estrella opcional.' },
@@ -15,7 +17,7 @@ export const strengthKey = lane => ['ArrowUp', 'ArrowRight', 'ArrowDown'][lane];
 export function dodgePhase(cue) {
   if(dodgePerfect(cue))return 'perfect';
   const p=cue.age/cue.windup;
-  return p<.12?'direction':p<.3?'prepare':cue.age<dodgeWindow(cue).start?'signal':cue.age<=cue.windup+DODGE.late?'late':'strike';
+  return p<.12?'direction':p<.3?'prepare':cue.age<dodgeWindow(cue).start?'signal':cue.age<dodgeImpact(cue)?'late':'strike';
 }
 
 export function cuePresentation(s){
@@ -32,8 +34,8 @@ export const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
 // The simulation owns time; rendering and DOM events never choose game outcomes.
 export class Training {
-  constructor({ random = Math.random, reward = () => {}, feedback = () => {}, getRecord = () => 0,getMission } = {}) {
-    this.localMissions={};this.getMission=getMission??(mode=>this.localMissions[mode]??newMissionProgress());this.getRecord=getRecord;this.records={};this.random = random; this.reward = reward; this.feedback = feedback;
+  constructor({ random = Math.random, reward = () => {}, feedback = () => {}, getRecord = () => 0,getMission,getTraining=()=>({level:0,room:1,station:0}) } = {}) {
+    this.getTraining=getTraining;this.localMissions={};this.getMission=getMission??(mode=>this.localMissions[mode]??newMissionProgress());this.getRecord=getRecord;this.records={};this.random = random; this.reward = reward; this.feedback = feedback;
     this.pointer = { x: 750, y: 390 }; this.scale = 1; this.session = null; this.nextId = 1;
   }
   range(a, b) { return a + this.random() * (b - a); }
@@ -44,7 +46,7 @@ export class Training {
   start(mode) {
     if (!MODES[mode]) throw new Error('Unknown discipline');
     this.session = { mode, running: true, paused: false, time: 0, combo: 0, best: 0,
-      errors:0,recovery:false,pendingHurt:0,hurtFlash:0,missionRecord:normalizeMission(this.getMission(mode)),missionFlash:0,missionCompleted:0,hits:0, perfect: 0, misses: 0, score: 0, xp: 0, gold: 0, spawn: .45,
+      comboLevel:null,lastXp:null,levelNotice:null,roomLevel:this.getTraining(mode).room??1,errors:0,recovery:false,pendingHurt:0,hurtFlash:0,missionRecord:normalizeMission(this.getMission(mode)),missionFlash:0,missionCompleted:0,hits:0, perfect: 0, misses: 0, score: 0, xp: 0, gold: 0, spawn: .45,
       starTimer:7,phrase:{left:0,factor:1},burstRemaining:0,pendingSword:null,perfectRun:0,bestPerfectRun:0,lastPerfect:-99,impactId:0,mastery:null,throwCue:null, objects: [], effects: [], attacks: [], pose: null, dummy: 0,
       rewardedThrough:Math.max(this.records[mode]??0,this.getRecord(mode)),notice:null,milestone:0,milestoneId:0,laneBag:[],lastLane:-1,lastStrengthArrival:-99,fakeStreak:0,lastArrival:-99, missionDone: false, difficulty: 0, feedback: null, defBag: [], lastSector: -1, pairPending: 0, critical: { stage: 'wait', clock: 0, delay: .7 } };
     return this.session;
@@ -64,16 +66,22 @@ export class Training {
   pose(kind, duration = .26, direction = 1) { this.session.pose = { kind, age: 0, duration, direction }; }
   good(perfect,x,y,details={}) {
     const s = this.session;
-    if(s.recovery)return;s.errors=0;
-    s.hits++; s.combo++; s.best = Math.max(s.best, s.combo); s.perfect += perfect ? 1 : 0;
+    if(s.recovery)return;if(!details.passive)s.errors=0;
+    s.hits++; if(!details.passive)s.combo++; s.best = Math.max(s.best, s.combo); s.perfect += perfect ? 1 : 0;
     s.score += perfect ? 5 : 3;
-    const bonus=s.combo>s.rewardedThrough?(COMBO_MILESTONES[s.combo]??0):0;
+    const bonus=0; // Old milestone records remain durable; per-hit XP replaces their lump-sum XP.
     s.rewardedThrough=Math.max(s.rewardedThrough,s.combo);this.records[s.mode]=s.rewardedThrough;
+    const terms=this.getTraining(s.mode);s.roomLevel=terms.room??1;
+    if(!details.passive&&s.comboLevel===null)s.comboLevel=terms.level??0;
+    const breakdown=trainingXp({combo:s.combo,required:xpRequired(s.comboLevel),room:terms.room,station:terms.station,perfect,passive:!!details.passive});
     const mission=advanceMission(s.missionRecord,s.mode,{perfect,combo:s.combo,...details});this.localMissions[s.mode]=structuredClone(s.missionRecord);
-    const xp=(perfect?3:2)+Math.min(3,Math.floor(s.combo/50))+bonus+(mission?.xp??0);
+    const xp=breakdown.total+(mission?.xp??0);
     const gold=(s.hits%5===0?1:0)+(mission?.gold??0);
-    const granted = this.reward(s.mode, { xp, gold, combo:s.combo,kind:'hit',bonus,mission,missionState:structuredClone(s.missionRecord) });
+    const granted = this.reward(s.mode, { xp, gold, combo:s.combo,kind:details.passive?'read':'hit',perfect,breakdown,bonus,mission,missionState:structuredClone(s.missionRecord) });
     s.xp += granted?.xp ?? xp; s.gold += gold;
+    s.lastXp={amount:breakdown.total,combo:s.combo,passive:!!details.passive,life:.7};
+    this.effect('label',x,y-60,{text:`${perfect?'★ ':''}+${breakdown.total.toLocaleString('es-AR')} XP`,color:'#bce9ff',duration:.7});
+    if(granted?.levelUp){s.levelNotice={...granted.levelUp,life:2.4};this.feedback('level',{mode:s.mode});}
     this.effect('hit', x, y, { perfect });
     this.effect('label', x, y - 30, { text: perfect ? '¡PERFECTO!' : '¡BIEN!', color: perfect ? '#ffe783' : '#b9f3d0', duration: .65 });
     s.feedback = { text: perfect ? '¡PERFECTO!' : '¡BIEN!', tone: perfect ? 'perfect' : 'good', life: .8 };
@@ -86,13 +94,12 @@ export class Training {
       if(s.perfectRun>=3)this.effect('label',600,260,{text:`¡CADENA PERFECTA ×${s.perfectRun}!`,color:'#fff4a1',duration:.65});
     }
     this.feedback(perfect?'perfect':'hit',{mode:s.mode,run:s.perfectRun});
-    if(COMBO_MILESTONES[s.combo]){s.milestone=s.combo;s.milestoneId++;}
-    if(bonus){s.notice={text:`★ COMBO ${s.combo} · +${bonus} XP extra`,life:2};this.effect('label',600,230,{text:s.notice.text,color:'#fff0a4',duration:1.5});}
+    if(!details.passive&&COMBO_MILESTONES.includes(s.combo)){s.milestone=s.combo;s.milestoneId++;}
     if(mission){s.missionDone=true;s.missionCompleted++;s.missionFlash=2;s.notice={text:`¡MISIÓN ${mission.index} COMPLETADA! · +${mission.xp} XP · +${mission.gold} monedas`,life:2};this.effect('label',600,230,{text:s.notice.text,color:'#ffe783',duration:1.5});}
   }
 
   bad(x = 350, y = 390, reason = 'FALLO') {
-    const s=this.session;if(s.recovery)return;s.errors++;s.recovery=s.errors>=3;s.combo=0; s.misses++;s.perfectRun=0;s.mastery=null;
+    const s=this.session;if(s.recovery)return;s.errors++;s.recovery=s.errors>=3;s.combo=0;s.comboLevel=null; s.misses++;s.perfectRun=0;s.mastery=null;
     this.effect('miss', x, y, { duration: .22 });
     this.effect('label', x, y - 30, { text: reason, color: '#ffc5bb', duration: .5 });
     s.feedback = { text: reason==='FALLO'?'FALLO':`FALLO · ${reason}`, tone: 'miss', life: 1.4 };
@@ -187,7 +194,7 @@ export class Training {
       const phase = dodgePhase(cue);
       cue.resolved=true;cue.action=dir;
       this.pose(dir==='up'?'jump':dir==='down'?'crouch':'dash',Math.max(.4,cue.windup-cue.age+.3),dir==='left'?-1:1);s.pose.evade=true;
-      if (dir === needed && cue.age >= cue.windup*DODGE.early && cue.age <= cue.windup+DODGE.late) {
+      if (dir === needed && cue.age >= cue.windup*DODGE.early && cue.age <= dodgeImpact(cue)-DODGE.inputLead) {
         cue.outcome = phase === 'perfect' ? 'perfect' : 'good';
         cue.perfect=dodgePerfect(cue);
       } else {
@@ -226,7 +233,7 @@ export class Training {
     const s=this.session,c=s.critical,p=tuning('crit',this.difficulty);
     c.clock+=dt;
     if(c.stage==='wait'&&c.clock>=c.delay){c.stage=s.fakeStreak<3&&this.random()<p.fakeChance?'fake':'ready';s.fakeStreak=c.stage==='fake'?s.fakeStreak+1:0;c.clock=0;c.limit=(c.stage==='fake'?p.fake:p.ready)*this.range(.94,1.06);}
-    else if(c.stage==='fake'&&c.clock>=(c.limit??p.fake)){const before=s.xp;this.good(false,900,270,{special:1});s.feedback={text:`¡AMAGUE LEÍDO! · +${s.xp-before} XP`,tone:'good',life:1};this.resetCritical(this.range(p.waitMin,p.waitMax)*this.phraseFactor());}
+    else if(c.stage==='fake'&&c.clock>=(c.limit??p.fake)){this.good(false,900,270,{special:1,passive:true});s.feedback={text:'¡AMAGUE LEÍDO! · +1 XP',tone:'good',life:1};this.resetCritical(this.range(p.waitMin,p.waitMax)*this.phraseFactor());}
     else if(c.stage==='ready'&&c.clock>=(c.limit??p.ready)){this.bad(900,270,'Perdiste la señal de salto');this.resetCritical(.4);}
     else if(c.stage==='jump'&&c.clock>=.32){c.stage='air';c.clock=0;c.limit=p.air*this.range(.96,1.04);}
     else if(c.stage==='air'&&c.clock>=(c.limit??p.air)){this.bad(700,300,'Perdiste el golpe aéreo');this.resetCritical(.4);}
@@ -238,6 +245,8 @@ export class Training {
     const s = this.session, d = this.difficulty, p=tuning(s.mode,d,this.scale);
     const target = difficultyTarget(s.combo), rate = target < s.difficulty ? .55 : .25;
     s.difficulty += clamp(target-s.difficulty,-rate*dt,rate*dt);
+    for(const key of ['lastXp','levelNotice'])if(s[key]){s[key].life-=dt;if(s[key].life<=0)s[key]=null;}
+    s.roomLevel=this.getTraining(s.mode).room??1;
     s.missionFlash=Math.max(0,s.missionFlash-dt);s.hurtFlash=Math.max(0,s.hurtFlash-dt);if(s.pendingHurt>0){s.pendingHurt-=dt;if(s.pendingHurt<=0)this.pose('hurt');}
     if(s.throwCue){s.throwCue.age+=dt;if(s.throwCue.age>.22)s.throwCue=null;}
     if(s.mastery){s.mastery.life-=dt;if(s.mastery.life<=0)s.mastery=null;}
@@ -285,9 +294,9 @@ export class Training {
         if(distance<SHIELD.radius)o.passedShield=true;
         if(distance<=SHIELD.bodyRadius+(o.r??17)){s.objects.splice(i,1);this.bad(600,390,'Superó el escudo');this.pose('hurt');}
       } else if(o.type==='cue'){
-        if(!o.resolved&&o.age>=o.windup+DODGE.late){o.resolved=true;o.outcome='miss';o.reason='No esquivaste a tiempo';this.pose('hurt');}
-        if(o.resolved&&!o.awarded&&o.age>=dodgeWindow(o).end){o.awarded=true;if(o.outcome==='miss'){this.bad(DODGE.heroX,DODGE.heroY-90,o.reason);s.pendingHurt=.14;s.hurtFlash=.28;}else this.good(o.perfect,DODGE.heroX,DODGE.heroY-90,{technique:o.kind});}
-        if(o.age>=o.windup+DODGE.recover){s.objects.splice(i,1);s.spawn=p.interval*this.phraseFactor()*this.range(.85,1.1);}
+        if(!o.resolved&&o.age>=dodgeImpact(o)){o.resolved=true;o.outcome='miss';o.reason='No esquivaste a tiempo';this.pose('hurt');}
+        if(o.resolved&&!o.awarded&&o.age>=dodgeImpact(o)){o.awarded=true;if(o.outcome==='miss'){this.bad(DODGE.heroX,DODGE.heroY-90,o.reason);s.pendingHurt=.14;s.hurtFlash=.28;}else this.good(o.perfect,DODGE.heroX,DODGE.heroY-90,{technique:o.kind});}
+        if(o.age>=dodgeImpact(o)+DODGE.recover){s.objects.splice(i,1);s.spawn=p.interval*this.phraseFactor()*this.range(.85,1.1);}
       } else if ((o.life !== undefined && o.life <= 0) || (s.mode === 'str' && o.type === 'apple' && o.x < 245)) {
         s.objects.splice(i,1);if(o.type==='star')continue;this.bad(o.x ?? 350, o.y ?? 390, o.type==='star'?'Estrella perdida':'Objeto perdido'); this.pose('hurt');
       }

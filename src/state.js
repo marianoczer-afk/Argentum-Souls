@@ -9,6 +9,7 @@ export function loadState(storage) {
   try { raw = JSON.parse((storage ?? globalThis.localStorage).getItem(SAVE_KEY)) || {}; } catch { /* Recover an unreadable save. */ }
   const values = (keys, source) => Object.fromEntries(keys.map(key => [key, Math.floor(number(source?.[key]))]));
   return {
+    room:Math.max(1,Math.min(10,Math.floor(number(raw.room))||1)),
     coins: Math.floor(number(raw.coins)), wins: Math.floor(number(raw.wins)),
     stats: values(ATTRIBUTES, raw.stats), xp: values(ATTRIBUTES, raw.xp),
     stations: values(ATTRIBUTES, raw.stations),

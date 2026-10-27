@@ -43,15 +43,15 @@ test('A.2 white circle and Perfect grading coincide at both boundaries for every
   for(const age of [w.start-.001,w.start,w.start+.03,w.end,w.end+.001]){
    const cue={id:1,type:'cue',kind,age,windup,resolved:false},visual=dodgeMotion(cue).perfect;
    assert.equal(visual,dodgePerfect(cue));assert.equal(dodgePhase(cue)==='perfect',visual);
-   const e=new Training();e.start('dodge');e.session.spawn=999;e.session.objects=[cue];e.input({high:'ArrowDown',mid:'ArrowLeft',low:'ArrowUp'}[kind]);assert.equal(cue.perfect,visual);advance(e,Math.max(.01,w.end-age+.01));assert.equal(e.session.perfect,visual?1:0);
+   const e=new Training();e.start('dodge');e.session.spawn=999;e.session.objects=[cue];e.input({high:'ArrowDown',mid:'ArrowLeft',low:'ArrowUp'}[kind]);assert.equal(cue.perfect,visual);advance(e,Math.max(.01,windup+.13-age));assert.equal(e.session.perfect,visual?1:0);
   }
  }
 });
 test('A.2 only three dodge kinds and rhythm changes without elapsed-time intensity',()=>{
  const e=new Training({random:random()});e.start('dodge');const kinds=new Set(),durations=new Set();for(let i=0;i<30;i++){e.spawnObject();const cue=e.session.objects.pop();kinds.add(cue.kind);durations.add(cue.windup.toFixed(3));}assert.deepEqual([...kinds].sort(),['high','low','mid']);assert.ok(durations.size>5);const factors=new Set();for(let i=0;i<40;i++)factors.add(e.phraseFactor());assert.equal(factors.size,3);assert.equal(e.difficulty,0);
 });
-test('A.2 chained perfect cuts and blocks have separate responsive feedback and no bonus economy changes',()=>{
- for(const mode of ['str','def']){const calls=[],e=new Training({feedback:(kind,detail)=>calls.push({kind,detail})});e.start(mode);for(let i=0;i<3;i++){e.good(true,350,450);e.session.time+=.3;}assert.equal(e.session.perfectRun,3);assert.equal(e.session.xp,9);assert.ok(e.session.effects.some(f=>f.kind==='chain'));assert.deepEqual(calls.map(c=>c.detail.run),[1,2,3]);assert.ok(calls.every(c=>c.detail.mode===mode));assert.equal(e.session.mastery.count,3);e.bad();assert.equal(e.session.perfectRun,0);}
+test('A.2 chained perfect cuts and blocks have separate responsive feedback and growing per-hit XP',()=>{
+ for(const mode of ['str','def']){const calls=[],e=new Training({feedback:(kind,detail)=>calls.push({kind,detail})});e.start(mode);for(let i=0;i<3;i++){e.good(true,350,450);e.session.time+=.3;}assert.equal(e.session.perfectRun,3);assert.equal(e.session.xp,21);assert.ok(e.session.effects.some(f=>f.kind==='chain'));assert.deepEqual(calls.map(c=>c.detail.run),[1,2,3]);assert.ok(calls.every(c=>c.detail.mode===mode));assert.equal(e.session.mastery.count,3);e.bad();assert.equal(e.session.perfectRun,0);}
 });
 test('A.2 critical fake and real present comparable signals and reading the red signal grants once',()=>{
  const e=new Training();e.start('crit');e.session.critical={stage:'fake',clock:0,limit:.55};assert.match(cuePresentation(e.session).text,/ROJO/);advance(e,.56);assert.equal(e.session.hits,1);const xp=e.session.xp;advance(e,.01);assert.equal(e.session.xp,xp);assert.equal(e.session.running,true);

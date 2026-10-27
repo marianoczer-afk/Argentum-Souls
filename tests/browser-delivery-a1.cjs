@@ -18,14 +18,14 @@ module.exports=async(browser,url,check)=>{
  const preset=async(combo)=>p.evaluate(combo=>{const e=window.__training;e.session.combo=combo;e.session.difficulty=Math.min(1,Math.log1p(combo/40)/Math.log(6));e.session.spawn=0;e.session.starTimer=999;},combo);
  const screenshot=async name=>{await p.clock.runFor(20);return p.screenshot({path:path.join(__dirname,'../artifacts',`delivery-a1-${name}.png`),fullPage:true});};
  try{
- await check('A.1: real precision hits award milestones, mission XP and level animations; miss/restart/reload cannot repeat prizes',async()=>{
+ await check('A.1: real precision hits award growing XP, durable records, missions and level animations; miss/restart/reload cannot repeat prizes',async()=>{
   await mode('acc');
   for(let i=1;i<=25;i++){
    const target=(await until(s=>s.objects.length>0)).objects[0];const before=await s();await click(target.x,target.y,i%2===0);const after=await s();
    assert.equal(after.hits,i);assert.equal(after.combo,i);
-   if(i===10){assert.equal(after.xp-before.xp,6);assert.match(await p.locator('#rewardNotice').innerText(),/COMBO 10.*3 XP/);}
-   if(i===12){assert.equal(after.xp-before.xp,15);assert.match(await p.locator('#rewardNotice').innerText(),/12 XP.*15 monedas/);}
-   if(i===25){assert.equal(after.xp-before.xp,8);assert.match(await p.locator('#rewardNotice').innerText(),/COMBO 25.*5 XP/);}
+   if(i===10){assert.equal(after.xp-before.xp,after.lastXp.amount);assert.equal(after.milestone,10);assert.ok(after.lastXp.amount>i);}
+   if(i===12){assert.equal(after.xp-before.xp,after.lastXp.amount+12);assert.match(await p.locator('#rewardNotice').innerText(),/12 XP.*15 monedas/);}
+   if(i===25){assert.equal(after.xp-before.xp,after.lastXp.amount);assert.equal(after.milestone,25);assert.ok(after.lastXp.amount>i);}
    await p.clock.runFor(20);
   }
   const motions=await p.evaluate(()=>window.motion);assert.ok(motions.some(m=>m.id==='comboFocus'&&m.frames.some(f=>f.transform==='scale(1.18)')));assert.ok(motions.some(m=>m.attribute==='acc'&&m.frames[0].transform==='scale(1.03)'));
@@ -33,7 +33,7 @@ module.exports=async(browser,url,check)=>{
   const before=await progress(),target=(await until(s=>s.objects.length)).objects[0];await click(target.x+target.r+4,target.y);assert.equal((await s()).combo,0);assert.deepEqual(await progress(),before);
   // Replaying the same attribute after reload retains the durable high-water mark.
   await p.locator('#stop').click();await p.reload();await ready();assert.equal((await progress()).comboRecords.acc,25);
-  await mode('acc');assert.equal(await p.locator('#bestCombo').innerText(),'25');for(let i=0;i<10;i++){const target=(await until(s=>s.objects.length)).objects[0];const before=await s();await click(target.x,target.y);if(i===9){const after=await s(),extra=after.missionRecord.index>before.missionRecord.index?12+Math.min(168,(before.missionRecord.index-1)*4):0;assert.equal(after.xp-before.xp,3+extra);};}
+  await mode('acc');assert.equal(await p.locator('#bestCombo').innerText(),'25');for(let i=0;i<10;i++){const target=(await until(s=>s.objects.length)).objects[0];const before=await s();await click(target.x,target.y);if(i===9){const after=await s(),extra=after.missionRecord.index>before.missionRecord.index?12+Math.min(168,(before.missionRecord.index-1)*4):0;assert.equal(after.xp-before.xp,after.lastXp.amount+extra);};}
   const got=await s();assert.notEqual(got.notice?.text,'★ COMBO 10 · +3 XP extra');
  });
  await check('A.1: browser samples all seven combos in all five disciplines; speed, cadence and windows change gradually',async()=>{
@@ -85,7 +85,7 @@ module.exports=async(browser,url,check)=>{
   const before=await progress();await click(80,690,true);assert.equal((await s()).combo,0);assert.deepEqual(await progress(),before);
  });
  await check('A.1: straight dodge cue precedes preparation; early Good, Perfect and clear Fail grade once on execution',async()=>{
-  for(const [fraction,correct,outcome] of [[.08,true,'miss'],[.24,true,'good'],[1.03,true,'perfect'],[1.03,false,'miss']]){
+  for(const [fraction,correct,outcome] of [[.08,true,'miss'],[.24,true,'good'],[.82,true,'perfect'],[.82,false,'miss']]){
    await mode('dodge');const cue=(await until(s=>s.objects.length)).objects[0];await p.clock.runFor(Math.max(0,Math.round((cue.windup*fraction-cue.age)*1000)));
    const q=(await s()).objects[0],needed={low:'ArrowUp',high:'ArrowDown',mid:'ArrowLeft'}[q.kind];
    if(fraction===.08){await screenshot('dodge-direction');}
@@ -96,14 +96,14 @@ module.exports=async(browser,url,check)=>{
  });
  await check('A.1: ignored critical fake grants one hit/XP; illuminated perfect window and late failure are visible',async()=>{
   await mode('crit');const fake=await until(s=>s.critical.stage==='fake');const hits=fake.hits;await screenshot('critical-fake');
-  await p.clock.runFor(Math.ceil((fake.critical.limit-fake.critical.clock+.015)*1000));assert.equal((await s()).hits,hits+1);assert.equal((await s()).combo,fake.combo+1);assert.match(await p.locator('#actionFeedback').innerText(),/AMAGUE LEÍDO/);
+  await p.clock.runFor(Math.ceil((fake.critical.limit-fake.critical.clock+.015)*1000));assert.equal((await s()).hits,hits+1);assert.equal((await s()).combo,fake.combo);assert.match(await p.locator('#actionFeedback').innerText(),/AMAGUE LEÍDO/);
   await until(s=>s.critical.stage==='ready');await p.keyboard.press('Space');await p.clock.runFor(430);const air=await s();assert.equal(air.critical.stage,'air');await screenshot('critical-perfect');
   const before=air.hits;await click(760,270);assert.equal((await s()).hits,before+1);assert.ok((await s()).perfect>=1);const xp=await progress();await click(760,270);assert.deepEqual(await progress(),xp);
   await until(s=>s.critical.stage==='ready');await p.keyboard.press('Space');await p.clock.runFor(850);assert.match(await p.locator('#actionFeedback').innerText(),/Perdiste el golpe aéreo/);
  });
- await check('A.1: centered combo, compact five-stat right panel and controls inside scene; mobile panel collapses',async()=>{
+ await check('A.3.1: right combo, centred attribute, compact five-stat right panel and controls inside scene; mobile panel collapses',async()=>{
   await mode('str');const scene=await p.locator('#scene').boundingBox(),combo=await p.locator('#comboFocus').boundingBox(),panel=await p.locator('.training-stats').boundingBox();
-  assert.ok(Math.abs((combo.x+combo.width/2)-(scene.x+scene.width/2))<2);assert.ok(panel.x>=scene.x+scene.width);assert.ok(panel.width<=190);assert.ok(scene.width>1000);
+  assert.ok(combo.x>scene.x+scene.width*.7);const bar=await p.locator('.attribute-hud').boundingBox();assert.ok(Math.abs(bar.x+bar.width/2-(scene.x+scene.width/2))<2);assert.ok(panel.x>=scene.x+scene.width);assert.ok(panel.width<=190);assert.ok(scene.width>1000);
   assert.equal(await p.locator('#trainingStats .training-attribute').count(),5);assert.equal(await p.locator('#touchControls').count(),0);assert.equal(await p.locator('#result').innerText(),'');assert.equal(await p.locator('#guide').isVisible(),false);await screenshot('desktop');
   await p.setViewportSize({width:390,height:844});const small=await p.locator('#scene').boundingBox(),below=await p.locator('.training-stats').boundingBox();assert.ok(below.y<small.y);assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);if(await p.locator('#attributesPanel').evaluate(e=>e.open))await p.locator('#attributesPanel>summary').tap();assert.equal(await p.locator('#trainingStats').isVisible(),false);await screenshot('mobile');
  });

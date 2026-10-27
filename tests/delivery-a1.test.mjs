@@ -12,15 +12,15 @@ test('A.1 combo curve is continuous, perceptible early, capped and has no step a
  for(const mode of ['str','def','acc','dodge','crit'])for(const c of combos){const p=tuning(mode,difficultyTarget(c));for(const n of Object.values(p))assert.ok(Number.isFinite(n)&&n>=-.08);}
  assert.ok(tuning('acc',difficultyTarget(24)).motion<tuning('acc',difficultyTarget(25)).motion);
 });
-test('A.1 milestone XP is once per attribute across misses, restarts and durable reload',()=>{
+test('A.3.1 per-hit XP replaces milestone payouts while durable attribute records survive reload',()=>{
  let state=loadState({getItem:()=>null});let granted=[];
  const make=()=>new Training({getRecord:m=>state.comboRecords[m],reward:(m,r)=>{granted.push(r);awardTraining(state,m,r);return r;}});
  let e=make();e.start('acc');for(let i=0;i<200;i++)e.good(true,600,390);
- assert.deepEqual(granted.filter(r=>r.bonus).map(r=>r.bonus),Object.values(COMBO_MILESTONES));
+ assert.equal(granted.filter(r=>r.bonus).length,0);assert.equal(state.comboRecords.acc,200);
  const before=state.xp.acc;e.bad();assert.equal(state.xp.acc,before);
- e.start('acc');for(let i=0;i<25;i++)e.good(true,600,390);assert.equal(granted.filter(r=>r.bonus).length,6);
- state=loadState({getItem:()=>JSON.stringify(state)});e=make();e.start('acc');for(let i=0;i<25;i++)e.good(true,600,390);assert.equal(granted.filter(r=>r.bonus).length,6);
- e.start('str');for(let i=0;i<10;i++)e.good(true,350,450);assert.equal(granted.filter(r=>r.bonus).length,7);
+ e.start('acc');for(let i=0;i<25;i++)e.good(true,600,390);assert.equal(granted.filter(r=>r.bonus).length,0);
+ state=loadState({getItem:()=>JSON.stringify(state)});e=make();e.start('acc');for(let i=0;i<25;i++)e.good(true,600,390);assert.equal(granted.filter(r=>r.bonus).length,0);
+ e.start('str');for(let i=0;i<10;i++)e.good(true,350,450);assert.equal(granted.filter(r=>r.bonus).length,0);
 });
 test('A.1 maintaining 200 perfect hits earns more than repeatedly resetting at combo 10 or 12',()=>{
  const total=(length,repeats)=>{let xp=0;const e=new Training({reward:(_,r)=>{xp+=r.xp;}});for(let r=0;r<repeats;r++){e.start('str');for(let i=0;i<length;i++)e.good(true,350,450);}return xp/(length*repeats);};
@@ -52,13 +52,13 @@ test('A.1 moving paired precision targets remain disjoint and completely visible
  }
 });
 test('A.1 dodge accepts reasonable early input, grades only at execution and resolves once',()=>{
- for(const [age,key,outcome] of [[.05,'ArrowUp','miss'],[.24,'ArrowUp','good'],[1.02,'ArrowUp','perfect'],[1.18,'ArrowUp','good'],[1.02,'ArrowDown','miss']]){
+ for(const [age,key,outcome] of [[.05,'ArrowUp','miss'],[.24,'ArrowUp','good'],[.82,'ArrowUp','perfect'],[1.05,'ArrowUp','good'],[1.02,'ArrowDown','miss']]){
   const e=new Training();e.start('dodge');e.session.spawn=999;e.session.objects=[{id:1,type:'cue',kind:'low',age,windup:1,resolved:false}];e.input(key);assert.equal(e.session.hits,0);assert.ok(e.session.pose);e.input(key);advance(e,Math.max(.01,1.13-age));
   assert.equal(e.session.hits,outcome==='miss'?0:1);assert.equal(e.session.misses,outcome==='miss'?1:0);assert.equal(e.session.perfect,outcome==='perfect'?1:0);const xp=e.session.xp;advance(e,.3);assert.equal(e.session.xp,xp);
  }
 });
 test('A.1 ignored fake rewards once; critical windows are bounded and missed opportunities explain why',()=>{
- const e=new Training();e.start('crit');e.session.critical={stage:'fake',clock:0,limit:.6};advance(e,.61);assert.equal(e.session.hits,1);assert.equal(e.session.combo,1);assert.ok(e.session.xp>0);assert.match(e.session.feedback.text,/AMAGUE/);advance(e,.05);assert.equal(e.session.hits,1);
+ const e=new Training();e.start('crit');e.session.critical={stage:'fake',clock:0,limit:.6};advance(e,.61);assert.equal(e.session.hits,1);assert.equal(e.session.combo,0);assert.equal(e.session.xp,1);assert.match(e.session.feedback.text,/AMAGUE/);advance(e,.05);assert.equal(e.session.hits,1);
  e.session.critical={stage:'air',clock:0,limit:.42};advance(e,.43);assert.match(e.session.feedback.text,/golpe aéreo/);assert.equal(e.session.combo,0);
  for(const c of combos){const p=tuning('crit',difficultyTarget(c));assert.ok(p.ready>=.58&&p.air>=.38&&p.perfectEnd-p.perfectStart>=.099);}
 });
@@ -67,10 +67,10 @@ test('A.2 dodge renders three distinct actual body/limb transformations without 
  const frames={};
  for(const kind of ['high','mid','low']){
   const calls=[];const context=new Proxy({},{get:(_,key)=>(...args)=>{if(['translate','lineTo'].includes(key))calls.push([key,...args]);}});
-  new TrainingRenderer({getContext:()=>context}).dodgeAttack({kind,age:1.03,windup:1});frames[kind]=calls;
+  new TrainingRenderer({getContext:()=>context}).dodgeAttack({kind,age:1.12,windup:1});frames[kind]=calls;
  }
  assert.notDeepEqual(frames.high,frames.mid);assert.notDeepEqual(frames.mid,frames.low);
  assert.ok(frames.high.some(c=>c[0]==='translate'&&c[1]<-20));
  assert.ok(frames.mid.some(c=>c[0]==='lineTo'&&c[1]<-130));
- assert.ok(frames.low.some(c=>c[0]==='lineTo'&&c[1]<-90&&c[2]===45));
+ assert.ok(frames.low.some(c=>c[0]==='lineTo'&&c[1]<-90&&c[2]>=40&&c[2]<60));
 });
