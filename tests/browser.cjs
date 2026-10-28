@@ -174,6 +174,7 @@ TrainingRenderer.prototype.hero = function(x,y,...args) {
   await require('./browser-delivery-a2.cjs')(browser, url, check);
   await require('./browser-delivery-a3.cjs')(browser, url, check);
   await require('./browser-delivery-a31.cjs')(browser, url, check);
+  await require('./browser-a32.cjs')(browser, url, check);
   await check('GitHub Pages: application and modules load under /Argentum-Souls/', async () => {
     const page = await browser.newPage(), errors = [], failed = [];
     page.on('pageerror', e => errors.push(e.message));

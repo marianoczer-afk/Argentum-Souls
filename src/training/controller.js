@@ -58,7 +58,7 @@ export function mountTraining({ root=document.getElementById('soulsApp'), reward
   $('closeControls').onclick=()=>$('controlsDialog').close();
   $('controlsDialog').addEventListener('close',()=>{if(helpWasActive&&canMutate()){engine.pause(false);pauseReason=null;update();}helpWasActive=false;$('trainingHelp').blur();});
   const blur=()=>pauseFor('blur'),visibility=()=>{if(document.hidden)blur();};window.addEventListener('blur',blur);document.addEventListener('visibilitychange',visibility);
-  const stage=mountStage({frame:scene,canvas,host:root.querySelector('.training-layout'),onResize:info=>{engine.viewportOffset=info.offset;engine.setScale(canvas.clientHeight/720);}});
+  const stage=mountStage({frame:scene,canvas,host:root.querySelector('.training-layout'),onResize:info=>{engine.viewportOffset=info.offset;engine.setScale(canvas.clientHeight/720);measurement?.record({type:'viewport',...info});}});
   modeButtons();stage.fit();begin();update();renderer.draw(engine,selected);
   return{
     engine,pause:()=>pauseFor('settings'),

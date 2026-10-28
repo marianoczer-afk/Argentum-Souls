@@ -7,8 +7,8 @@ export const roomCost=level=>level>=ROOM_MAX?null:Math.round(180*level**2.15);
 export function buyRoom(state,allowed=true){const cost=roomCost(state.room);if(!allowed||cost===null||state.coins<cost)return false;state.coins-=cost;state.room++;return true;}
 export const rawComboXp=combo=>combo===1?2:combo===2?4:combo===3?12:combo*(combo-1)+4;
 export function comboXp(combo,required,variant='X0'){
- if(combo<=3)return rawComboXp(combo);
- const candidate=XP_CANDIDATES[variant];if(!candidate)throw Error('Unknown XP candidate');
+ if(!Object.hasOwn(XP_CANDIDATES,variant))throw Error('Unknown XP candidate');
+ const candidate=XP_CANDIDATES[variant];if(combo<=3)return rawComboXp(combo);
  if(candidate.kind==='linear')return 12+candidate.slope*(combo-3);
  if(candidate.kind==='capped')required=Math.min(required,xpRequired(candidate.cap));
  const floor=combo+8,extra=rawComboXp(combo)-floor,budget=Math.max(24,required*.18);
