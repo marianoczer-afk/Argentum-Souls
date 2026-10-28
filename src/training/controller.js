@@ -2,9 +2,9 @@ import {mountStage,canvasPoint} from '../stage.js';
 import {touchAction} from './controls.js';
 import { Training, MODES, WORLD, cuePresentation, clamp } from './model.js';
 import { TrainingRenderer } from './render.js';
-export function mountTraining({ root=document.getElementById('soulsApp'), reward, onSave, feedback=()=>{}, canMutate=()=>true, getRecord=()=>0,getMission,getTraining, getProgress=()=>({level:0,xp:0,required:20}) }) {
+export function mountTraining({ root=document.getElementById('soulsApp'), reward, onSave, feedback=()=>{}, canMutate=()=>true, getRecord=()=>0,getMission,getTraining,experiment={}, getProgress=()=>({level:0,xp:0,required:20}) }) {
   const $=id=>root.querySelector(`#${id}`), canvas=$('cv'), scene=$('scene');
-  const engine=new Training({reward,feedback,getRecord,getMission,getTraining}), renderer=new TrainingRenderer(canvas);
+  const engine=new Training({...experiment,reward,feedback,getRecord,getMission,getTraining}), renderer=new TrainingRenderer(canvas);
   let selected='str',view='train',pauseReason=null,lastMilestone=0,lastImpact=0,lastLevelKey='',lastPercent=0;
   const pause=$('pause');
   function begin(){if(!canMutate())return;engine.start(selected);lastMilestone=0;pauseReason=null;$('overlay').classList.add('hidden');$('result').textContent='';update();}

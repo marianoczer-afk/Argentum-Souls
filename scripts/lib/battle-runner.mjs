@@ -1,0 +1,7 @@
+import {Combat} from '../../src/combat/model.js';import {rng,normal} from './random.mjs';
+// Side-effect-free import. 'informed' is retained as an explicitly privileged upper control.
+export function simulateBattle(state,id,seed=1,active=true,{limit=180,speed=1,policy='informed',reaction=.25,dt=policy==='informed'?1/30:1/120}={}){const random=rng(seed),decision=rng(seed^0x5bd1e995),c=new Combat({state,arena:id,random}),waveTimes=[],waveDamage=[0,0,0,0];let waveStart=0,nextDecision=0,real=0,skills={slash:0,shield:0,heal:0};c.setSpeed(speed);
+ while(!c.over&&c.time<limit){if(active&&(policy==='informed'||c.time>=nextDecision)){nextDecision=c.time+Math.max(.05,reaction*Math.exp(.3*normal(decision)));const charged=policy==='informed'?c.enemyAttack?.charged:!!c.enemyAttack?.charged; // Charged ring is visible in BattleRenderer.
+ for(const key of ['slash',...(c.hero<c.heroStats.hp*.65?['heal']:[]),...(charged||c.hero<c.heroStats.hp*.5?['shield']:[])])if(c.use(key))skills[key]++;}
+ const wave=c.wave,kills=c.kills,hp=c.hero;if(policy==='informed')c.update(dt);else c.advance(dt/speed);real+=dt/speed;waveDamage[wave]+=Math.max(0,hp-c.hero);if(c.kills>kills)waveTimes[wave]=c.time-waveStart;if(c.wave>wave&&c.phase==='fight')waveStart=c.time;}
+ return{outcome:c.over?c.phase:'timeout',censored:!c.over,win:c.phase==='victory',seconds:c.time,realSeconds:real,kills:c.kills,hp:c.hero,waveTimes,waveDamage,skills};}

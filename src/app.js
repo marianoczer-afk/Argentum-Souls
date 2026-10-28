@@ -1,3 +1,4 @@
+import {experimentFromSearch} from './experiments/a32.js';
 import {statGain} from './progression/stat-gain.js';
 import { awardTraining, createBridge, xpRequired } from './state.js';
 import { openSaveSession } from './save-session.js';
@@ -29,7 +30,9 @@ function feedback(kind,detail={}) {
     oscillator.connect(gain); gain.connect(audio.destination); oscillator.start(); oscillator.stop(audio.currentTime + .09);
   } catch { /* Sound is optional; training remains playable. */ }
 }
-const training = mountTraining({
+const experiment=experimentFromSearch(location.search);
+if(experiment.rhythm!=='control'||experiment.xpVariant!=='X0'){const badge=document.createElement('p');badge.className='notice';badge.id='experimentStatus';badge.textContent=`A.3.2 EXPERIMENTAL · ritmo ${experiment.rhythm} · XP ${experiment.xpVariant} · Sin balance definitivo`;root.querySelector('header').insertAdjacentElement('afterend',badge);}
+const training = mountTraining({experiment,
   root,getTraining:mode=>({level:state.stats[mode],room:state.room,station:state.stations[mode]}), getMission:mode=>state.missions[mode],getRecord:mode=>state.comboRecords[mode], getProgress: mode=>({level:state.stats[mode],xp:state.xp[mode],required:xpRequired(state.stats[mode])}),
   reward(mode, earned) {
     const xp=earned.xp;

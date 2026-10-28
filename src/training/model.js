@@ -1,3 +1,4 @@
+import {rhythmParameters} from '../experiments/a32.js';
 import {trainingXp} from '../progression/training-xp.js';
 import {xpRequired} from '../state.js';
 import {newMissionProgress,normalizeMission,advanceMission,missionText} from '../progression/missions.js';
@@ -34,10 +35,12 @@ export const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
 // The simulation owns time; rendering and DOM events never choose game outcomes.
 export class Training {
-  constructor({ random = Math.random, reward = () => {}, feedback = () => {}, getRecord = () => 0,getMission,getTraining=()=>({level:0,room:1,station:0}) } = {}) {
-    this.getTraining=getTraining;this.localMissions={};this.getMission=getMission??(mode=>this.localMissions[mode]??newMissionProgress());this.getRecord=getRecord;this.records={};this.random = random; this.reward = reward; this.feedback = feedback;
+  constructor({rhythm='control',xpVariant='X0',onEvent=null, random = Math.random, reward = () => {}, feedback = () => {}, getRecord = () => 0,getMission,getTraining=()=>({level:0,room:1,station:0}) } = {}) {
+    this.rhythm=rhythm;this.xpVariant=xpVariant;this.onEvent=onEvent;this.getTraining=getTraining;this.localMissions={};this.getMission=getMission??(mode=>this.localMissions[mode]??newMissionProgress());this.getRecord=getRecord;this.records={};this.random = random; this.reward = reward; this.feedback = feedback;
     this.pointer = { x: 750, y: 390 }; this.scale = 1; this.session = null; this.nextId = 1;
   }
+  parameters(mode,d,scale=this.scale){return rhythmParameters(tuning(mode,d,scale),mode,this.rhythm);}
+  emit(type,detail={}){if(this.onEvent)this.onEvent({time:this.session?.time??0,type,...detail});}
   range(a, b) { return a + this.random() * (b - a); }
   get difficulty() {
     const s = this.session;
@@ -73,11 +76,11 @@ export class Training {
     s.rewardedThrough=Math.max(s.rewardedThrough,s.combo);this.records[s.mode]=s.rewardedThrough;
     const terms=this.getTraining(s.mode);s.roomLevel=terms.room??1;
     if(!details.passive&&s.comboLevel===null)s.comboLevel=terms.level??0;
-    const breakdown=trainingXp({combo:s.combo,required:xpRequired(s.comboLevel),room:terms.room,station:terms.station,perfect,passive:!!details.passive});
+    const breakdown=trainingXp({combo:s.combo,required:xpRequired(s.comboLevel),room:terms.room,station:terms.station,perfect,passive:!!details.passive,variant:this.xpVariant});
     const mission=advanceMission(s.missionRecord,s.mode,{perfect,combo:s.combo,...details});this.localMissions[s.mode]=structuredClone(s.missionRecord);
     const xp=breakdown.total+(mission?.xp??0);
     const gold=(s.hits%5===0?1:0)+(mission?.gold??0);
-    const granted = this.reward(s.mode, { xp, gold, combo:s.combo,kind:details.passive?'read':'hit',perfect,breakdown,bonus,mission,missionState:structuredClone(s.missionRecord) });
+    const granted = this.reward(s.mode, { xp, gold, combo:s.combo,kind:details.passive?'read':'hit',perfect,details,breakdown,bonus,mission,missionState:structuredClone(s.missionRecord) });
     s.xp += granted?.xp ?? xp; s.gold += gold;
     s.lastXp={amount:breakdown.total,combo:s.combo,passive:!!details.passive,life:.7};
     this.effect('label',x,y-60,{text:`${perfect?'★ ':''}+${breakdown.total.toLocaleString('es-AR')} XP`,color:'#bce9ff',duration:.7});
@@ -99,14 +102,14 @@ export class Training {
   }
 
   bad(x = 350, y = 390, reason = 'FALLO') {
-    const s=this.session;if(s.recovery)return;s.errors++;s.recovery=s.errors>=3;s.combo=0;s.comboLevel=null; s.misses++;s.perfectRun=0;s.mastery=null;
+    const s=this.session;if(s.recovery)return;s.errors++;s.recovery=s.errors>=3;s.combo=0;s.comboLevel=null; s.misses++;s.perfectRun=0;s.mastery=null;this.emit('miss',{reason});
     this.effect('miss', x, y, { duration: .22 });
     this.effect('label', x, y - 30, { text: reason, color: '#ffc5bb', duration: .5 });
     s.feedback = { text: reason==='FALLO'?'FALLO':`FALLO · ${reason}`, tone: 'miss', life: 1.4 };
     this.feedback('miss');
   }
   spawnObject(burst=false) {
-    const s = this.session, d = this.difficulty, p=tuning(s.mode,d,this.scale);
+    const s = this.session, d = this.difficulty, p=this.parameters(s.mode,d);
     const object = { id: this.nextId++, age: 0,burst };
     s.dummy = .25;
     if (s.mode === 'str') {
@@ -153,7 +156,7 @@ export class Training {
       const kind=s.dodgeBag.pop();
       Object.assign(object,{type:'cue',kind,windup:p.windup*this.range(.95,1.05),perfectBefore:p.perfectBefore,perfectAfter:p.perfectAfter,resolved:false});
     } else return;
-    s.objects.push(object);
+    s.objects.push(object);this.emit('opportunity',{id:object.id,mode:s.mode});
   }
   phraseFactor(){
     const phrase=this.session.phrase;
@@ -206,7 +209,7 @@ export class Training {
       const c = s.critical;
       if (c.stage === 'ready') { c.stage = 'jump'; c.clock = 0; this.pose('jump',.7); }
       else if (c.stage === 'air') {
-        const p=tuning('crit',this.difficulty);c.lastPerfect=c.clock>=p.perfectStart&&c.clock<=p.perfectEnd;this.good(c.lastPerfect,800,350);
+        const p=this.parameters('crit',this.difficulty);c.lastPerfect=c.clock>=p.perfectStart&&c.clock<=p.perfectEnd;this.good(c.lastPerfect,800,350);
         c.strikeX = 610 + c.clock * 40; c.strikeY = 350 + c.clock * 20;
         c.stage = 'impact'; c.clock = 0; this.pose('critical', .35);
         this.effect('slash', 800, 350, { duration: .3 });
@@ -230,19 +233,19 @@ export class Training {
   }
   resetCritical(delay) { this.session.critical = { stage: 'wait', clock: 0, delay }; }
   tickCritical(dt) {
-    const s=this.session,c=s.critical,p=tuning('crit',this.difficulty);
+    const s=this.session,c=s.critical,p=this.parameters('crit',this.difficulty);
     c.clock+=dt;
     if(c.stage==='wait'&&c.clock>=c.delay){c.stage=s.fakeStreak<3&&this.random()<p.fakeChance?'fake':'ready';s.fakeStreak=c.stage==='fake'?s.fakeStreak+1:0;c.clock=0;c.limit=(c.stage==='fake'?p.fake:p.ready)*this.range(.94,1.06);}
     else if(c.stage==='fake'&&c.clock>=(c.limit??p.fake)){this.good(false,900,270,{special:1,passive:true});s.feedback={text:'¡AMAGUE LEÍDO! · +1 XP',tone:'good',life:1};this.resetCritical(this.range(p.waitMin,p.waitMax)*this.phraseFactor());}
     else if(c.stage==='ready'&&c.clock>=(c.limit??p.ready)){this.bad(900,270,'Perdiste la señal de salto');this.resetCritical(.4);}
     else if(c.stage==='jump'&&c.clock>=.32){c.stage='air';c.clock=0;c.limit=p.air*this.range(.96,1.04);}
     else if(c.stage==='air'&&c.clock>=(c.limit??p.air)){this.bad(700,300,'Perdiste el golpe aéreo');this.resetCritical(.4);}
-    else if(c.stage==='impact'&&c.clock>=.35)this.resetCritical(this.range(p.waitMin,p.waitMax)*this.phraseFactor());
+    else if(c.stage==='impact'&&c.clock>=.35)this.resetCritical(Math.max(0,this.range(p.waitMin,p.waitMax)*this.phraseFactor()-(this.rhythm==='overlap'?.35:0)));
   }
 
   update(dt) {
     if (!this.active || !Number.isFinite(dt) || dt <= 0) return;
-    const s = this.session, d = this.difficulty, p=tuning(s.mode,d,this.scale);
+    const s = this.session, d = this.difficulty, p=this.parameters(s.mode,d);
     const target = difficultyTarget(s.combo), rate = target < s.difficulty ? .55 : .25;
     s.difficulty += clamp(target-s.difficulty,-rate*dt,rate*dt);
     for(const key of ['lastXp','levelNotice'])if(s[key]){s[key].life-=dt;if(s[key].life<=0)s[key]=null;}
@@ -255,8 +258,8 @@ export class Training {
     s.time += dt; s.spawn -= dt; s.dummy = Math.max(0, s.dummy - dt);
     if (s.pose) { s.pose.age += dt; if (s.pose.age >= s.pose.duration) s.pose = null; }
     s.effects.forEach(e => { e.age += dt; }); s.effects = s.effects.filter(e => e.age < e.duration);
-    if (s.mode === 'crit') { this.tickCritical(dt); return; }
-    if (s.spawn <= 0 && (s.mode !== 'dodge' || !s.objects.length) && (s.mode !== 'acc' || s.objects.length < 4)) {
+    if (s.mode === 'crit') { const before=s.critical.stage;this.tickCritical(dt);if(before!==s.critical.stage){this.emit('phase',{from:before,to:s.critical.stage});if(['ready','fake'].includes(s.critical.stage))this.emit('opportunity',{mode:'crit',passive:s.critical.stage==='fake'});}return; }
+    if (s.spawn <= 0 && (s.mode !== 'dodge' || (!s.objects.length&&!(this.rhythm==='overlap'&&(s.pendingHurt>0||s.pose?.kind==='hurt')))) && (s.mode !== 'acc' || s.objects.length < 4)) {
       this.spawnObject();
       if(['str','def','acc'].includes(s.mode)&&this.random()<p.pairChance){s.pairPending=p.pairGap;s.burstRemaining=s.mode!=='acc'&&this.random()<p.tripleChance?2:1;}
       s.spawn+=Math.max(p.minInterval,p.interval*this.phraseFactor()*this.range(.92,1.08));
@@ -296,7 +299,7 @@ export class Training {
       } else if(o.type==='cue'){
         if(!o.resolved&&o.age>=dodgeImpact(o)){o.resolved=true;o.outcome='miss';o.reason='No esquivaste a tiempo';this.pose('hurt');}
         if(o.resolved&&!o.awarded&&o.age>=dodgeImpact(o)){o.awarded=true;if(o.outcome==='miss'){this.bad(DODGE.heroX,DODGE.heroY-90,o.reason);s.pendingHurt=.14;s.hurtFlash=.28;}else this.good(o.perfect,DODGE.heroX,DODGE.heroY-90,{technique:o.kind});}
-        if(o.age>=dodgeImpact(o)+DODGE.recover){s.objects.splice(i,1);s.spawn=p.interval*this.phraseFactor()*this.range(.85,1.1);}
+        if(o.age>=dodgeImpact(o)+DODGE.recover){s.objects.splice(i,1);s.spawn=Math.max(0,p.interval*this.phraseFactor()*this.range(.85,1.1)-(this.rhythm==='overlap'?DODGE.recover:0));}
       } else if ((o.life !== undefined && o.life <= 0) || (s.mode === 'str' && o.type === 'apple' && o.x < 245)) {
         s.objects.splice(i,1);if(o.type==='star')continue;this.bad(o.x ?? 350, o.y ?? 390, o.type==='star'?'Estrella perdida':'Objeto perdido'); this.pose('hurt');
       }

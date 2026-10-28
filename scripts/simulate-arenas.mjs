@@ -5,7 +5,7 @@ import {claimArena} from '../src/progression/arena-progress.js';
 import {equipmentCost} from '../src/progression/equipment.js';
 import {writeFile,mkdir} from 'node:fs/promises';
 import assert from 'node:assert/strict';
-export function simulateBattle(state,id,seed=1,active=true){let n=seed,waveStart=0;const waveTimes=[];const c=new Combat({state,arena:id,random:()=>{n=(Math.imul(n,1664525)+1013904223)>>>0;return n/2**32;}});while(!c.over&&c.time<180){if(active){c.use('slash');if(c.hero<c.heroStats.hp*.65)c.use('heal');if(c.enemyAttack?.charged||c.hero<c.heroStats.hp*.5)c.use('shield');}const wave=c.wave,phase=c.phase,kills=c.kills;c.update(1/30);if(c.kills>kills)waveTimes[wave]=c.time-waveStart;if(c.wave> wave&&c.phase==='fight')waveStart=c.time;}return{waveTimes,win:c.phase==='victory',seconds:c.time,kills:c.kills,hp:c.hero};}
+import {simulateBattle} from './lib/battle-runner.mjs';
 const profiles=[
  {name:'Equilibrado',stats:{str:75,def:75,acc:75,dodge:75,crit:75},gear:8},
  {name:'Fuerza y crítico',stats:{str:100,def:35,acc:65,dodge:40,crit:90},gear:8},
