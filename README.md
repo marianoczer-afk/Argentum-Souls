@@ -2,9 +2,19 @@
 
 🎮 **[JUGAR ARGENTUM SOULS ONLINE](https://marianoczer-afk.github.io/Argentum-Souls/)**
 
-**A.3.1 — Combos, sala y combate.** El HTML y la build de esta rama se publican en ese mismo enlace después de revisar y fusionar el PR. No hace falta descargar ZIP.
+**Sitio publicado: A.3.1 — Combos, sala y combate.** Esta rama contiene A.3.2 experimental; no se publica ni se fusiona sin aprobación.
 
 Juego estático con gráficos vectoriales y sonidos propios: cinco entrenamientos continuos, equipamiento, misiones persistentes y 100 arenas en diez regiones. Cada arena enfrenta cuatro rivales, uno por uno, con jefe final, ataques automáticos y habilidades manuales. La dificultad depende de la arena y sus enemigos, sin aumentar por las victorias anteriores.
+
+## Fase experimental A.3.2 (esta rama)
+
+Sin publicación de balance ni merge automático. Fuerza, Defensa y Precisión conservan sus mecánicas; Esquiva/Crítico tienen un ensayo optativo de esperas solapadas y la XP se compara sin ganadora predeterminada.
+
+Con `npm start`, abrí `http://127.0.0.1:8000/?measure=1&rhythm=overlap&xp=X0` para probar el ritmo, o `?measure=1&rhythm=control&xp=X0` para comparar. Sin parámetros se mantiene el control. El panel experimental permite descargar copia de Souls y medición local. Exportá antes de probar `xp=X1a4` o `xp=X2c50`: modifican solo recompensas futuras y usan la misma clave dentro del mismo origen. Localhost no comparte automáticamente tu guardado de GitHub Pages.
+
+Para generar el HTML autocontenido: `npm run build:a32:portable` → `artifacts/a32/Argentum-Souls-A32-experimental.html` (overlap/X0). No publica el sitio. [Cómo probarlo y límites del navegador](docs/A32_METHODS.md).
+
+[Resultados cuantitativos](docs/A32_REPORT.md) · [Métodos, comandos, semillas y límites](docs/A32_METHODS.md). Los informes A.3.1 que siguen se conservan como historial; los objetivos de duración no se presentan como resultados humanos.
 
 ## Jugar
 

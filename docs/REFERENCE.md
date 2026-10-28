@@ -56,3 +56,7 @@ La propuesta histórica de arena de tres/cinco rivales queda sustituida por el p
 ## A.3.1 y bocetos conceptuales
 
 El usuario agregó cuatro bocetos: HUD/barra central/subida de nivel, combate con ×1/×2, preparación de Esquiva y sala mejorable. Se adaptan como intención de diseño a los vectores existentes, sin incorporarlos como sprites ni afirmar fidelidad de ilustración. El blanco de Esquiva ahora precede al contacto físico; XP individual creciente y sala general reemplazan el ritmo de XP de A.3. Detalles en [DELIVERY_A31.md](DELIVERY_A31.md). El nivel general/talentos y la futura pesca se analizan en [FUTURE_PROGRESSION_AND_FISHING.md](FUTURE_PROGRESSION_AND_FISHING.md); no se implementan sus sistemas ni se inventan modificadores de Idle.
+
+### A.3.2 experimental
+
+La especificación corregida adjunta fue leída íntegramente; su SHA256 y el mapa de módulos pendientes completados constan en [A32_METHODS.md](A32_METHODS.md). Esta fase no sustituye la observación de personas por las cotas perfectas antiguas: entrega un controlador sintético de señales visibles, errores y tiempos positivos, más exportación local para calibración posterior. Los resultados ejecutados, metas todavía no demostradas y límites se separan en [A32_REPORT.md](A32_REPORT.md). No hay selección final de XP ni cambios de enemigos/precios/Q.
