@@ -1,0 +1,112 @@
+{
+  "schema": "souls-a32-config-v1",
+  "base": "911300e8dcbde72258c2babd1cd90d9b65d4789e",
+  "seedStart": 1001,
+  "seedCount": 100,
+  "rhythms": [
+    "control",
+    "overlap"
+  ],
+  "xp": [
+    "X0",
+    "X1a2",
+    "X1a4",
+    "X1a6",
+    "X2c25",
+    "X2c50",
+    "X2c75"
+  ],
+  "primaryXp": [
+    "X0",
+    "X1a4",
+    "X2c50"
+  ],
+  "profiles": {
+    "beginner": {
+      "reaction": 0.35,
+      "spread": 0.1,
+      "choiceError": 0.08,
+      "pointerSpeed": 800,
+      "angularSpeed": 8,
+      "angularAcceleration": 35,
+      "aimSigma": 17
+    },
+    "intermediate": {
+      "reaction": 0.25,
+      "spread": 0.07,
+      "choiceError": 0.03,
+      "pointerSpeed": 1300,
+      "angularSpeed": 12,
+      "angularAcceleration": 65,
+      "aimSigma": 10
+    },
+    "expert": {
+      "reaction": 0.19,
+      "spread": 0.045,
+      "choiceError": 0.01,
+      "pointerSpeed": 1900,
+      "angularSpeed": 18,
+      "angularAcceleration": 120,
+      "aimSigma": 5
+    }
+  },
+  "builds": {
+    "offensive": [
+      0.45,
+      0.15,
+      0.15,
+      0.05,
+      0.2
+    ],
+    "defensive": [
+      0.2,
+      0.4,
+      0.1,
+      0.2,
+      0.1
+    ],
+    "balanced": [
+      0.25,
+      0.25,
+      0.2,
+      0.15,
+      0.15
+    ]
+  },
+  "economies": [
+    "none",
+    "gear-first",
+    "room-first",
+    "station-first",
+    "mixed"
+  ],
+  "dt": 0.016666666666666666,
+  "renderHz": 60,
+  "checkpointsMinutes": [
+    10,
+    30,
+    60
+  ],
+  "journeyHours": 50,
+  "journeyBlockSeconds": 120,
+  "battleLimitSeconds": 600,
+  "designTargetsHours": {
+    "10": [
+      3,
+      5,
+      8
+    ],
+    "20": [
+      12,
+      18
+    ],
+    "50": [
+      70,
+      110
+    ],
+    "100": [
+      300,
+      450
+    ]
+  }
+}

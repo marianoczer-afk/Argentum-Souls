@@ -2,9 +2,9 @@ import {mountStage,canvasPoint} from '../stage.js';
 import {touchAction} from './controls.js';
 import { Training, MODES, WORLD, cuePresentation, clamp } from './model.js';
 import { TrainingRenderer } from './render.js';
-export function mountTraining({ root=document.getElementById('soulsApp'), reward, onSave, feedback=()=>{}, canMutate=()=>true, getRecord=()=>0,getMission,getTraining, getProgress=()=>({level:0,xp:0,required:20}) }) {
+export function mountTraining({ root=document.getElementById('soulsApp'), reward, onSave, feedback=()=>{}, canMutate=()=>true, getRecord=()=>0,getMission,getTraining,experiment={},measurement=null, getProgress=()=>({level:0,xp:0,required:20}) }) {
   const $=id=>root.querySelector(`#${id}`), canvas=$('cv'), scene=$('scene');
-  const engine=new Training({reward,feedback,getRecord,getMission,getTraining}), renderer=new TrainingRenderer(canvas);
+  const engine=new Training({...experiment,onEvent:measurement?event=>measurement.record(event):null,reward,feedback,getRecord,getMission,getTraining}), renderer=new TrainingRenderer(canvas);
   let selected='str',view='train',pauseReason=null,lastMilestone=0,lastImpact=0,lastLevelKey='',lastPercent=0;
   const pause=$('pause');
   function begin(){if(!canMutate())return;engine.start(selected);lastMilestone=0;pauseReason=null;$('overlay').classList.add('hidden');$('result').textContent='';update();}
@@ -58,7 +58,7 @@ export function mountTraining({ root=document.getElementById('soulsApp'), reward
   $('closeControls').onclick=()=>$('controlsDialog').close();
   $('controlsDialog').addEventListener('close',()=>{if(helpWasActive&&canMutate()){engine.pause(false);pauseReason=null;update();}helpWasActive=false;$('trainingHelp').blur();});
   const blur=()=>pauseFor('blur'),visibility=()=>{if(document.hidden)blur();};window.addEventListener('blur',blur);document.addEventListener('visibilitychange',visibility);
-  const stage=mountStage({frame:scene,canvas,host:root.querySelector('.training-layout'),onResize:info=>{engine.viewportOffset=info.offset;engine.setScale(canvas.clientHeight/720);}});
+  const stage=mountStage({frame:scene,canvas,host:root.querySelector('.training-layout'),onResize:info=>{engine.viewportOffset=info.offset;engine.setScale(canvas.clientHeight/720);measurement?.record({type:'viewport',...info});}});
   modeButtons();stage.fit();begin();update();renderer.draw(engine,selected);
   return{
     engine,pause:()=>pauseFor('settings'),

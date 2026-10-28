@@ -1,3 +1,4 @@
+import {stationCost,buyStation} from './progression/stations.js';
 import {buyRoom,roomCost,roomBonus} from './progression/training-xp.js';
 import {mountProgressPanel} from './progress-panel.js';
 import {MODES} from './training/model.js';
@@ -18,8 +19,8 @@ export function mountEconomy(state,save,canMutate=()=>true,root=document){
  function renderShop(){
   $('shopList').innerHTML=Object.entries(EQUIPMENT).map(([key,item])=>{const level=state.gear[key],price=equipmentCost(key,level);return`<div class="shopitem"><b>${item.icon} ${equipmentName(key,level)}</b><p>${equipmentDescription(key,level)} → ${equipmentDescription(key,level+1)}</p><button class="btn" data-buy="${key}" ${!canMutate()||state.coins<price?'disabled':''}>Comprar y equipar · ${price} monedas</button></div>`;}).join('');$('shopList').querySelectorAll('[data-buy]').forEach(b=>b.onclick=()=>purchase(b.dataset.buy));
   const cost=roomCost(state.room);$('roomUpgrade').innerHTML=`<h2>Sala de entrenamiento · ${state.room}/10</h2><p>+${Math.round(roomBonus(state.room)*100)}% sobre XP activa de combo. Las estaciones se suman después; Perfecto +1 XP. Las misiones y lecturas no se multiplican.</p><p>${cost===null?'Sala de élite completa':`Próxima: +${state.room*10}% · ${cost} monedas${state.coins<cost?` · faltan ${cost-state.coins}`:''}`}</p><button id="buyRoom" class="btn" ${cost===null||!canMutate()||state.coins<cost?'disabled':''}>Mejorar sala</button><p id="roomFeedback" role="status"></p>`;$('buyRoom').onclick=()=>{if(!buyRoom(state,canMutate()))return;const status=save();render();$('roomFeedback').textContent=`Sala ${state.room} · ${status.message}`;};
-  $('soulsStations').innerHTML='<h2>Estaciones</h2><div class="shopgrid">'+Object.entries(MODES).map(([key,m])=>{const level=state.stations[key],price=45*(level+1)**2;return`<div class="shopitem"><b>${m.icon} ${m.name} · Estación ${level}</b><p>+${level} XP por acierto</p><button class="btn" data-station="${key}" ${!canMutate()||state.coins<price?'disabled':''}>Mejorar · ${price} monedas</button></div>`;}).join('')+'</div>';
-  $('soulsStations').querySelectorAll('[data-station]').forEach(b=>b.onclick=()=>{const key=b.dataset.station,price=45*(state.stations[key]+1)**2;if(!canMutate()||state.coins<price)return;state.coins-=price;state.stations[key]++;save();render();});
+  $('soulsStations').innerHTML='<h2>Estaciones</h2><div class="shopgrid">'+Object.entries(MODES).map(([key,m])=>{const level=state.stations[key],price=stationCost(level);return`<div class="shopitem"><b>${m.icon} ${m.name} · Estación ${level}</b><p>+${level} XP por acierto</p><button class="btn" data-station="${key}" ${!canMutate()||state.coins<price?'disabled':''}>Mejorar · ${price} monedas</button></div>`;}).join('')+'</div>';
+  $('soulsStations').querySelectorAll('[data-station]').forEach(b=>b.onclick=()=>{const key=b.dataset.station;if(!buyStation(state,key,canMutate()))return;save();render();});
  }
  function render(){renderProgress();renderShop();}render();return{render,renderProgress};
 }

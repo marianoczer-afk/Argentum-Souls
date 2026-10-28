@@ -1,6 +1,6 @@
 {
   "name": "argentum-souls",
-  "version": "0.4.1",
+  "version": "0.4.2-experimental",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,7 +9,16 @@
     "test": "node --test tests/*.test.mjs",
     "test:browser": "node tests/browser.cjs",
     "test:mutation": "node scripts/test-animation-mutation.mjs",
-    "test:balance": "node scripts/simulate-training.mjs && node scripts/simulate-arenas.mjs && node scripts/simulate-progression.mjs"
+    "test:balance": "node scripts/simulate-training.mjs && node scripts/simulate-arenas.mjs && node scripts/simulate-progression.mjs",
+    "sim:a32:xp": "node scripts/compare-xp-a32.mjs",
+    "sim:a32:sessions": "node scripts/simulate-sessions-a32.mjs",
+    "sim:a32:journey": "node scripts/simulate-journey-a32.mjs",
+    "test:a32:save": "node --test tests/a32-save.test.mjs tests/save-session.test.mjs",
+    "sim:a32:validate": "node scripts/validate-a32.mjs",
+    "sim:a32:exploits": "node scripts/exploits-a32.mjs",
+    "sim:a32:utility": "node scripts/utility-a32.mjs",
+    "sim:a32:report": "node scripts/report-a32.mjs",
+    "build:a32:portable": "node scripts/build-a32-portable.mjs"
   },
   "devDependencies": {
     "playwright": "1.62.1"
