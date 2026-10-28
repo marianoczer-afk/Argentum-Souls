@@ -1,3 +1,4 @@
+import {TrainingMeasurement} from './experiments/measurement.js';
 import {experimentFromSearch} from './experiments/a32.js';
 import {statGain} from './progression/stat-gain.js';
 import { awardTraining, createBridge, xpRequired } from './state.js';
@@ -31,8 +32,10 @@ function feedback(kind,detail={}) {
   } catch { /* Sound is optional; training remains playable. */ }
 }
 const experiment=experimentFromSearch(location.search);
-if(experiment.rhythm!=='control'||experiment.xpVariant!=='X0'){const badge=document.createElement('p');badge.className='notice';badge.id='experimentStatus';badge.textContent=`A.3.2 EXPERIMENTAL · ritmo ${experiment.rhythm} · XP ${experiment.xpVariant} · Sin balance definitivo`;root.querySelector('header').insertAdjacentElement('afterend',badge);}
-const training = mountTraining({experiment,
+const measuring=experiment.rhythm!=='control'||experiment.xpVariant!=='X0'||new URLSearchParams(location.search).get('measure')==='1';
+const measurement=measuring?new TrainingMeasurement({...experiment,build:document.querySelector('meta[name="souls-build"]')?.content}):null;
+if(measuring){const badge=document.createElement('details');badge.className='notice';badge.id='experimentStatus';const summary=document.createElement('summary');summary.textContent=`A.3.2 experimental · ${experiment.rhythm} · XP ${experiment.xpVariant} · Medición local`;badge.append(summary);const backup=document.createElement('button');backup.className='btn small';backup.textContent='Exportar copia Souls';backup.onclick=()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='argentum-souls-a32-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);backup.blur();};const report=document.createElement('button');report.className='btn small';report.textContent='Exportar medición';report.onclick=()=>{const a=document.createElement('a'),url=URL.createObjectURL(new Blob([JSON.stringify(measurement.export(),null,2)],{type:'application/json'}));a.href=url;a.download='argentum-souls-a32-measurement.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);report.blur();};badge.append(' · ',backup,' ',report);window.ArgentumSoulsExperiment=Object.freeze({exportMeasurement:()=>measurement.export()});root.querySelector('header').insertAdjacentElement('afterend',badge);}
+const training = mountTraining({experiment,measurement,
   root,getTraining:mode=>({level:state.stats[mode],room:state.room,station:state.stations[mode]}), getMission:mode=>state.missions[mode],getRecord:mode=>state.comboRecords[mode], getProgress: mode=>({level:state.stats[mode],xp:state.xp[mode],required:xpRequired(state.stats[mode])}),
   reward(mode, earned) {
     const xp=earned.xp;
@@ -53,7 +56,7 @@ root.querySelectorAll('.tab').forEach(button => button.onclick = () => {
 let previous = performance.now(), accumulator = 0;
 const step = 1 / 120;
 function frame(now) {
-  const elapsed = Math.min(.1, Math.max(0, (now - previous) / 1000)); previous = now;
+  const wallElapsed=Math.max(0,(now-previous)/1000),elapsed=Math.min(.1,wallElapsed); previous = now;
   if (!document.hidden) {
     accumulator += elapsed;
     while (accumulator >= step) {
@@ -61,6 +64,7 @@ function frame(now) {
       accumulator -= step;
     }
     if (progressDirty) { economy.renderProgress(); progressDirty = false; }
+    if(view==='train')measurement?.sample(training.engine,wallElapsed);
     training.draw();if(view==='arena')arena.draw();
   } else accumulator = 0;
   requestAnimationFrame(frame);

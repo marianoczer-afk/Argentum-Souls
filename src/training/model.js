@@ -52,7 +52,7 @@ export class Training {
       comboLevel:null,lastXp:null,levelNotice:null,roomLevel:this.getTraining(mode).room??1,errors:0,recovery:false,pendingHurt:0,hurtFlash:0,missionRecord:normalizeMission(this.getMission(mode)),missionFlash:0,missionCompleted:0,hits:0, perfect: 0, misses: 0, score: 0, xp: 0, gold: 0, spawn: .45,
       starTimer:7,phrase:{left:0,factor:1},burstRemaining:0,pendingSword:null,perfectRun:0,bestPerfectRun:0,lastPerfect:-99,impactId:0,mastery:null,throwCue:null, objects: [], effects: [], attacks: [], pose: null, dummy: 0,
       rewardedThrough:Math.max(this.records[mode]??0,this.getRecord(mode)),notice:null,milestone:0,milestoneId:0,laneBag:[],lastLane:-1,lastStrengthArrival:-99,fakeStreak:0,lastArrival:-99, missionDone: false, difficulty: 0, feedback: null, defBag: [], lastSector: -1, pairPending: 0, critical: { stage: 'wait', clock: 0, delay: .7 } };
-    return this.session;
+    this.emit('session',{mode});return this.session;
   }
   stop() { if (this.session) { this.session.running=false;this.session.paused=false;this.session.recovery=false; } }
   pause(value) { if (this.session?.running) this.session.paused = value; }
@@ -60,7 +60,7 @@ export class Training {
   resumeRecovery(){const s=this.session;if(!s?.recovery)return false;s.recovery=false;s.errors=0;s.objects=[];s.attacks=[];s.pendingSword=null;s.spawn=.9;s.starTimer=7;s.critical={stage:'wait',clock:0,delay:.9};s.difficulty=0;s.pose=null;s.pendingHurt=0;return true;}
   missionLabel(){return missionText(this.session.mode,this.session.missionRecord);}
   setScale(scale) { this.scale = Math.max(.15, scale); }
-  setPointer(x, y) { this.pointer = { x, y }; }
+  setPointer(x, y) { this.pointer = { x, y };if(this.active)this.emit('pointer',{x,y}); }
   effect(kind, x, y, extra = {}) {
     const effects = this.session.effects;
     effects.push({ kind, x, y, age: 0, duration: .45, ...extra });
@@ -81,6 +81,7 @@ export class Training {
     const xp=breakdown.total+(mission?.xp??0);
     const gold=(s.hits%5===0?1:0)+(mission?.gold??0);
     const granted = this.reward(s.mode, { xp, gold, combo:s.combo,kind:details.passive?'read':'hit',perfect,details,breakdown,bonus,mission,missionState:structuredClone(s.missionRecord) });
+    this.emit('reward',{mode:s.mode,xp:granted?.xp??xp,gold,combo:s.combo,perfect,passive:!!details.passive,breakdown,mission:mission?.index??null});
     s.xp += granted?.xp ?? xp; s.gold += gold;
     s.lastXp={amount:breakdown.total,combo:s.combo,passive:!!details.passive,life:.7};
     this.effect('label',x,y-60,{text:`${perfect?'★ ':''}+${breakdown.total.toLocaleString('es-AR')} XP`,color:'#bce9ff',duration:.7});
@@ -186,7 +187,7 @@ export class Training {
   input(key) {
     if (!this.active) return;
     key = String(key).toLowerCase();
-    const s = this.session, dir = DIRS[key];
+    const s = this.session, dir = DIRS[key];if((['str','dodge'].includes(s.mode)&&dir)||(s.mode==='crit'&&[' ','enter','click'].includes(key)))this.emit('action',{action:'key',key});
     if (s.mode === 'str' && dir) {
       if(s.attacks[0]&&s.attacks[0].age<SWORD.commit){s.pendingSword=dir;return;}
       this.startSword(dir);
@@ -223,7 +224,7 @@ export class Training {
     if (!this.active) return;
     const s = this.session;
     if (s.mode === 'crit') return this.input('click');
-    if (s.mode !== 'acc') return;
+    if (s.mode !== 'acc') return;this.emit('action',{action:'shot',x,y});
     this.pose('shoot', .22);
     this.effect('arrow', x, y, { duration: .18 });
     const hits = s.objects.filter(o => Math.hypot(x - o.x, y - o.y) <= o.r).sort((a, b) => Math.hypot(x - a.x, y - a.y) - Math.hypot(x - b.x, y - b.y));

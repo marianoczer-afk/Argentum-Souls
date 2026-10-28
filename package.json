@@ -13,7 +13,9 @@
     "sim:a32:xp": "node scripts/compare-xp-a32.mjs",
     "sim:a32:sessions": "node scripts/simulate-sessions-a32.mjs",
     "sim:a32:journey": "node scripts/simulate-journey-a32.mjs",
-    "test:a32:save": "node --test tests/a32-save.test.mjs tests/save-session.test.mjs"
+    "test:a32:save": "node --test tests/a32-save.test.mjs tests/save-session.test.mjs",
+    "sim:a32:validate": "node scripts/validate-a32.mjs",
+    "sim:a32:exploits": "node scripts/exploits-a32.mjs"
   },
   "devDependencies": {
     "playwright": "1.62.1"

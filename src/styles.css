@@ -97,3 +97,5 @@ html,body{min-height:100%;margin:0}#soulsApp{height:100dvh;min-height:0;display:
 @media(prefers-reduced-motion:reduce){.attribute-meter #attributeFill{transition:none}}
 
 .battle-speed{display:flex;gap:3px;margin-left:auto}.battle-speed .active{background:#b38241;color:#171f29;border-color:#eac774}.battle-speed .btn{padding:4px 9px;font-size:12px}.battle-hud{border-bottom:1px solid #69705d}
+
+#experimentStatus{flex:none;margin:3px 7px;padding:4px 8px;font-size:11px}#experimentStatus summary{cursor:pointer;color:#f3d58e}#experimentStatus .btn{margin:4px 3px 0 0;padding:3px 7px;font-size:10px}
